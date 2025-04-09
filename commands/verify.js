@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
-const { getUserInfo } = require('../utils/robloxAPI');
+const { getUserInfo, getPlayerAvatar } = require('../utils/robloxAPI');
 const { setVerificationCode, setPendingVerification, removePendingVerification, getPendingVerification, setVerifiedUser } = require('../utils/database');
+const noblox = require('noblox.js');
 
 function generateVerificationCode() {
   // Generate a random 6-character alphanumeric code
@@ -88,45 +89,101 @@ module.exports = {
     await interaction.deferUpdate();
     
     const userId = interaction.user.id;
-    const pendingVerification = getPendingVerification(userId);
+    console.log(`[INFO] Handling verify button click for user ID: ${userId}`);
+    
+    // Get pending verification from database
+    const pendingVerification = await getPendingVerification(userId);
+    console.log(`[INFO] Pending verification retrieved:`, pendingVerification);
     
     if (!pendingVerification) {
+      console.log(`[INFO] No pending verification found for user ${userId}`);
       return interaction.followUp({ 
         content: '❌ Your verification session has expired or does not exist. Please start over with /verify.', 
         ephemeral: true 
       });
     }
     
-    // Get the user's current Roblox profile
-    const userInfo = await getUserInfo(pendingVerification.robloxUsername);
+    // Make sure we have a username
+    if (!pendingVerification.robloxUsername) {
+      console.error(`[ERROR] Missing Roblox username in pending verification for user ${userId}`);
+      return interaction.followUp({ 
+        content: '❌ Verification data is incomplete. Please start over with /verify.', 
+        ephemeral: true 
+      });
+    }
+    
+    console.log(`[INFO] Verifying Roblox username: ${pendingVerification.robloxUsername} (ID: ${pendingVerification.robloxUserId})`);
+    
+    // Get the user's current Roblox profile directly with userId if possible
+    let userInfo;
+    if (pendingVerification.robloxUserId) {
+      try {
+        // Try to get user info by ID first
+        const playerInfo = await noblox.getPlayerInfo(pendingVerification.robloxUserId);
+        if (playerInfo) {
+          const avatarUrl = await getPlayerAvatar(pendingVerification.robloxUserId);
+          userInfo = {
+            userId: pendingVerification.robloxUserId,
+            username: playerInfo.username,
+            displayName: playerInfo.displayName, 
+            blurb: playerInfo.blurb,
+            joinDate: playerInfo.joinDate,
+            age: playerInfo.age,
+            avatarUrl: avatarUrl
+          };
+          console.log(`[INFO] Successfully retrieved user info by ID for ${userInfo.username}`);
+        }
+      } catch (idError) {
+        console.error(`[ERROR] Failed to get user info by ID ${pendingVerification.robloxUserId}:`, idError);
+        // Will fall back to username lookup
+      }
+    }
+    
+    // If ID lookup failed, try username lookup
     if (!userInfo) {
+      userInfo = await getUserInfo(pendingVerification.robloxUsername);
+    }
+    
+    if (!userInfo) {
+      console.error(`[ERROR] Failed to find Roblox profile for ${pendingVerification.robloxUsername}`);
       return interaction.followUp({ 
         content: '❌ Unable to find your Roblox profile. Please try again.', 
         ephemeral: true 
       });
     }
     
+    console.log(`[INFO] User info retrieved:`, { 
+      username: userInfo.username, 
+      displayName: userInfo.displayName,
+      userId: userInfo.userId,
+      blurbLength: userInfo.blurb ? userInfo.blurb.length : 0
+    });
+    
     // Check if the verification code is in the profile description
     if (!userInfo.blurb || !userInfo.blurb.includes(pendingVerification.code)) {
+      console.log(`[INFO] Verification code ${pendingVerification.code} not found in blurb: ${userInfo.blurb?.substring(0, 50)}...`);
       return interaction.followUp({ 
         content: `❌ Verification code not found in your Roblox profile description. Please make sure you've added code \`${pendingVerification.code}\` to your description and try again.`, 
         ephemeral: true 
       });
     }
     
+    console.log(`[INFO] Verification code found in blurb, proceeding with verification for user ${userId}`);
+    
     // Verification successful, store the verified user
-    setVerifiedUser(userId, {
-      robloxUserId: pendingVerification.robloxUserId,
-      robloxUsername: pendingVerification.robloxUsername
+    await setVerifiedUser(userId, {
+      robloxUserId: userInfo.userId,
+      robloxUsername: userInfo.username
     });
     
     // Clean up
-    removePendingVerification(userId);
+    await removePendingVerification(userId);
     
     // Update the user's nickname on the Discord server
     try {
       const member = interaction.member;
       await member.setNickname(userInfo.displayName || userInfo.username);
+      console.log(`[INFO] Updated nickname for user ${userId} to ${userInfo.displayName || userInfo.username}`);
     } catch (error) {
       console.error(`[ERROR] Failed to update nickname for ${interaction.user.tag}:`, error);
       // Continue with verification even if nickname update fails
@@ -138,6 +195,11 @@ module.exports = {
       .setColor('#43b581')
       .setDescription(`You have successfully verified as ${userInfo.username} on Roblox!`)
       .setFooter({ text: 'You can now use all bot features' });
+    
+    // Add user avatar if available
+    if (userInfo.avatarUrl) {
+      successEmbed.setThumbnail(userInfo.avatarUrl);
+    }
     
     // Disable the verify button
     const disabledButton = new ButtonBuilder()
@@ -153,5 +215,7 @@ module.exports = {
       embeds: [successEmbed],
       components: [updatedRow]
     });
+    
+    console.log(`[INFO] Verification completed successfully for user ${userId} as ${userInfo.username}`);
   }
 };
