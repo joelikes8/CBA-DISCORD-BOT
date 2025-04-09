@@ -1,68 +1,100 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { getVerifiedUser } = require('../utils/database');
-const { getUserInfo } = require('../utils/robloxAPI');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('log')
-    .setDescription('Submit a tryout log')
-    .addStringOption(option =>
-      option.setName('recruit')
-        .setDescription('Roblox username of the recruit')
+    .setDescription('Log moderation actions')
+    .addUserOption(option => 
+      option.setName('user')
+        .setDescription('Target user of the action')
         .setRequired(true))
     .addStringOption(option =>
-      option.setName('tryout_type')
-        .setDescription('Type of tryout conducted')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('result')
-        .setDescription('Result of the tryout')
+      option.setName('action')
+        .setDescription('Type of action taken')
         .setRequired(true)
         .addChoices(
-          { name: 'Passed', value: 'Passed' },
-          { name: 'Failed', value: 'Failed' }
+          { name: 'Warn', value: 'warn' },
+          { name: 'Mute', value: 'mute' },
+          { name: 'Kick', value: 'kick' },
+          { name: 'Ban', value: 'ban' },
+          { name: 'Tryout', value: 'tryout' },
+          { name: 'Verification', value: 'verify' },
+          { name: 'Other', value: 'other' }
         ))
     .addStringOption(option =>
-      option.setName('notes')
-        .setDescription('Additional notes about the tryout')
+      option.setName('reason')
+        .setDescription('Reason for the action')
         .setRequired(true))
+    .addStringOption(option =>
+      option.setName('notes')
+        .setDescription('Additional notes (optional)')
+        .setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
     await interaction.deferReply();
     
-    // Get the input values
-    const recruitUsername = interaction.options.getString('recruit');
-    const tryoutType = interaction.options.getString('tryout_type');
-    const result = interaction.options.getString('result');
-    const notes = interaction.options.getString('notes');
+    const targetUser = interaction.options.getUser('user');
+    const action = interaction.options.getString('action');
+    const reason = interaction.options.getString('reason');
+    const notes = interaction.options.getString('notes') || 'None';
     
-    // Verify the recruit exists on Roblox
-    const recruitInfo = await getUserInfo(recruitUsername);
-    if (!recruitInfo) {
-      return interaction.editReply({ content: '❌ Could not find a Roblox user with that username. Please check the spelling and try again.' });
+    // Create colors for different action types
+    const actionColors = {
+      warn: '#ffcc00',   // Yellow
+      mute: '#ff9933',   // Orange
+      kick: '#ff6600',   // Dark Orange
+      ban: '#ff0000',    // Red
+      tryout: '#3399ff', // Blue
+      verify: '#33cc33', // Green
+      other: '#cc99ff'   // Purple
+    };
+    
+    // Create icons for different action types
+    const actionIcons = {
+      warn: '⚠️',
+      mute: '🔇',
+      kick: '👢',
+      ban: '🔨',
+      tryout: '🎯',
+      verify: '✅',
+      other: '📝'
+    };
+    
+    // Format the action name
+    const actionName = action.charAt(0).toUpperCase() + action.slice(1);
+    
+    try {
+      // Create a log embed
+      const logEmbed = new EmbedBuilder()
+        .setTitle(`${actionIcons[action]} ${actionName} Log`)
+        .setColor(actionColors[action])
+        .addFields(
+          { name: 'User', value: `${targetUser} (${targetUser.tag})`, inline: true },
+          { name: 'User ID', value: targetUser.id, inline: true },
+          { name: 'Action', value: actionName, inline: true },
+          { name: 'Reason', value: reason, inline: false },
+          { name: 'Notes', value: notes, inline: false },
+          { name: 'Moderator', value: interaction.user.tag, inline: true },
+          { name: 'Date', value: new Date().toLocaleString(), inline: true }
+        )
+        .setTimestamp();
+      
+      // Add user avatar if available
+      if (targetUser.avatar) {
+        logEmbed.setThumbnail(targetUser.displayAvatarURL({ dynamic: true }));
+      }
+      
+      // Reply with the log embed
+      await interaction.editReply({ embeds: [logEmbed] });
+      
+      // Ideally, in a real bot, you'd also:
+      // 1. Send this to a dedicated logging channel
+      // 2. Store it in a database for audit history
+      
+    } catch (error) {
+      console.error(`Error logging action:`, error);
+      return interaction.editReply({ content: `❌ Failed to log action: ${error.message}` });
     }
-    
-    // Get the current time in a readable format
-    const now = new Date();
-    const timestamp = `<t:${Math.floor(now.getTime() / 1000)}:F>`;
-    
-    // Create an embed for the tryout log
-    const logEmbed = new EmbedBuilder()
-      .setTitle('📋 Tryout Log Submitted')
-      .setColor(result === 'Passed' ? '#43b581' : '#f04747')
-      .setDescription(`A tryout log has been submitted for ${recruitUsername}`)
-      .addFields(
-        { name: '👤 Recruit', value: recruitUsername, inline: true },
-        { name: '🎯 Tryout', value: tryoutType, inline: true },
-        { name: '✅ Result', value: result, inline: true },
-        { name: '📝 Notes', value: notes, inline: false },
-        { name: '📅 Logged by', value: `${interaction.user} at ${timestamp}`, inline: false }
-      )
-      .setTimestamp()
-      .setFooter({ text: `Recruit ID: ${recruitInfo.userId}` });
-    
-    // Send the log
-    return interaction.editReply({ embeds: [logEmbed] });
   },
 };

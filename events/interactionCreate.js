@@ -41,6 +41,17 @@ module.exports = {
           await interaction.reply({ content: 'There was an error processing your verification!', ephemeral: true });
         }
       }
+      
+      // Handle help menu navigation
+      else if (customId.startsWith('help_')) {
+        try {
+          const helpCommand = interaction.client.commands.get('help');
+          // The help command handles its own button interactions
+          // through collectors, so we don't need to do anything here
+        } catch (error) {
+          console.error('Error with help menu interaction:', error);
+        }
+      }
     }
   },
 };

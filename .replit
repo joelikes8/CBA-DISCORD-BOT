@@ -19,6 +19,10 @@ args = "DiscordBotServer"
 task = "workflow.run"
 args = "checkDependencies"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "DeployCommands"
+
 [[workflows.workflow]]
 name = "DiscordBotServer"
 author = "agent"
@@ -46,6 +50,20 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm list | grep discord && npm list | grep noblox && echo \"Required environment variables:\" && grep -r \"process.env\" --include=\"*.js\" ."
+
+[[workflows.workflow]]
+name = "DeployCommands"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node deploy-commands.js"
 
 [deployment]
 run = ["sh", "-c", "node index.js"]
