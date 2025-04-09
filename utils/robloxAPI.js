@@ -39,21 +39,59 @@ async function initializeRoblox() {
  */
 async function getUserInfo(username) {
   try {
+    console.log(`[INFO] Looking up Roblox user: ${username}`);
+    
+    // Trim the username and handle special characters
+    const cleanUsername = username.trim();
+    
     // First get the user ID from the username
-    const userId = await noblox.getIdFromUsername(username);
+    let userId;
+    try {
+      userId = await noblox.getIdFromUsername(cleanUsername);
+      console.log(`[INFO] Found userId for ${cleanUsername}: ${userId}`);
+    } catch (idError) {
+      console.error(`[ERROR] Failed to get ID for username ${cleanUsername}:`, idError);
+      
+      // Try to search users to handle case sensitivity and spaces
+      try {
+        const searchResults = await noblox.searchUsers(cleanUsername);
+        if (searchResults.length > 0) {
+          // Find exact match in search results
+          const exactMatch = searchResults.find(
+            user => user.username.toLowerCase() === cleanUsername.toLowerCase()
+          );
+          
+          if (exactMatch) {
+            userId = exactMatch.id;
+            console.log(`[INFO] Found user through search: ${exactMatch.username} (${userId})`);
+          }
+        }
+      } catch (searchError) {
+        console.error(`[ERROR] Failed to search for username ${cleanUsername}:`, searchError);
+      }
+    }
+    
     if (!userId) {
+      console.log(`[INFO] No Roblox user found with username: ${cleanUsername}`);
       return null;
     }
     
     // Get user information
     const userInfo = await noblox.getPlayerInfo(userId);
+    if (!userInfo) {
+      console.error(`[ERROR] Failed to get player info for userId ${userId}`);
+      return null;
+    }
     
     // Get avatar URL
     const avatarUrl = await getPlayerAvatar(userId);
     
+    // Return user info with correct username (from Roblox, not input)
+    const correctUsername = userInfo.username || cleanUsername;
+    
     return {
       userId: userId,
-      username: username,
+      username: correctUsername,
       displayName: userInfo.displayName,
       blurb: userInfo.blurb,
       joinDate: userInfo.joinDate,
