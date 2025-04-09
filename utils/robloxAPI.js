@@ -99,15 +99,30 @@ async function getPlayerAvatar(userId) {
  */
 async function checkBlacklistedGroups(userId) {
   try {
-    const blacklistedGroups = getBlacklistedGroups();
-    if (blacklistedGroups.length === 0) {
+    // Make sure userId is a number
+    userId = Number(userId);
+    
+    // Get blacklisted groups from database
+    const blacklistedGroups = await require('./database').getBlacklistedGroups();
+    console.log(`[DEBUG] Checking user ${userId} against ${blacklistedGroups.length} blacklisted groups:`, blacklistedGroups);
+    
+    if (!blacklistedGroups || blacklistedGroups.length === 0) {
       return { inBlacklistedGroup: false, groups: [] };
     }
     
+    // Get user's groups
     const userGroups = await noblox.getGroups(userId);
-    const blacklisted = userGroups.filter(group => 
-      blacklistedGroups.includes(String(group.Id))
-    );
+    console.log(`[DEBUG] User ${userId} is in ${userGroups.length} groups`);
+    
+    // Filter to find which groups are blacklisted
+    const blacklisted = userGroups.filter(group => {
+      const groupIdStr = String(group.Id);
+      const isBlacklisted = blacklistedGroups.includes(groupIdStr);
+      if (isBlacklisted) {
+        console.log(`[DEBUG] Found blacklisted group: ${group.Name} (${groupIdStr})`);
+      }
+      return isBlacklisted;
+    });
     
     return {
       inBlacklistedGroup: blacklisted.length > 0,
