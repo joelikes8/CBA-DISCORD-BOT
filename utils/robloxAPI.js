@@ -47,16 +47,47 @@ async function getUserInfo(username) {
     
     // Get user information
     const userInfo = await noblox.getPlayerInfo(userId);
+    
+    // Get avatar URL
+    const avatarUrl = await getPlayerAvatar(userId);
+    
     return {
       userId: userId,
       username: username,
       displayName: userInfo.displayName,
       blurb: userInfo.blurb,
       joinDate: userInfo.joinDate,
-      age: userInfo.age
+      age: userInfo.age,
+      avatarUrl: avatarUrl
     };
   } catch (error) {
     console.error(`[ERROR] Failed to get user info for ${username}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get player's avatar URL
+ * @param {number} userId - Roblox user ID
+ * @returns {Promise<string>} - Avatar URL
+ */
+async function getPlayerAvatar(userId) {
+  try {
+    // Get the headshot thumbnail
+    const avatarData = await noblox.getPlayerThumbnail(
+      userId,
+      "420x420", // Size
+      "png", // Format
+      false, // Is circular
+      "headshot" // Type
+    );
+    
+    if (avatarData && avatarData.length > 0 && avatarData[0].imageUrl) {
+      return avatarData[0].imageUrl;
+    }
+    return null;
+  } catch (error) {
+    console.error(`[ERROR] Failed to get avatar for user ${userId}:`, error);
     return null;
   }
 }
@@ -171,5 +202,6 @@ module.exports = {
   getUserInfo,
   checkBlacklistedGroups,
   rankUser,
-  getUserRank
+  getUserRank,
+  getPlayerAvatar
 };

@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { getTryoutChannel } = require('../utils/database');
+const { getVerifiedUser } = require('../utils/database');
+const { getPlayerAvatar } = require('../utils/robloxAPI');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,6 +26,8 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    
     const location = interaction.options.getString('location');
     const padNumber = interaction.options.getInteger('pad');
     const lockedMinutes = interaction.options.getInteger('locked');
@@ -31,13 +35,13 @@ module.exports = {
     // Check if tryout channel has been set up
     const tryoutChannelId = getTryoutChannel(interaction.guild.id);
     if (!tryoutChannelId) {
-      return interaction.reply({ content: '❌ Tryout announcement channel has not been set up yet. Please use `/setuptryout` first.', ephemeral: true });
+      return interaction.editReply({ content: '❌ Tryout announcement channel has not been set up yet. Please use `/setuptryout` first.', ephemeral: true });
     }
     
     // Get the tryout channel
     const tryoutChannel = await interaction.guild.channels.fetch(tryoutChannelId).catch(() => null);
     if (!tryoutChannel) {
-      return interaction.reply({ content: '❌ The configured tryout channel no longer exists. Please use `/setuptryout` to set a new one.', ephemeral: true });
+      return interaction.editReply({ content: '❌ The configured tryout channel no longer exists. Please use `/setuptryout` to set a new one.', ephemeral: true });
     }
     
     // Calculate the unlock time
@@ -45,6 +49,22 @@ module.exports = {
     const unlockTime = new Date(now.getTime() + lockedMinutes * 60000);
     const unlockTimeString = `<t:${Math.floor(unlockTime.getTime() / 1000)}:F>`;
     const relativeTimeString = `<t:${Math.floor(unlockTime.getTime() / 1000)}:R>`;
+    
+    // Try to get the host's Roblox avatar
+    let avatarUrl = null;
+    
+    try {
+      // Check if the user is verified with Roblox
+      const verifiedUser = await getVerifiedUser(interaction.user.id);
+      
+      if (verifiedUser) {
+        // Get the user's Roblox avatar URL
+        avatarUrl = await getPlayerAvatar(verifiedUser.roblox_user_id);
+      }
+    } catch (error) {
+      console.error(`[ERROR] Failed to get host avatar:`, error);
+      // Continue without avatar if there's an error
+    }
     
     // Create the announcement embed
     const embed = new EmbedBuilder()
@@ -61,10 +81,15 @@ module.exports = {
       .setTimestamp()
       .setFooter({ text: lockedMinutes > 0 ? `Unlocks ${relativeTimeString}` : 'Tryout open now' });
     
+    // Add the host's Roblox avatar if available
+    if (avatarUrl) {
+      embed.setThumbnail(avatarUrl);
+    }
+    
     // Send the announcement to the tryout channel
     await tryoutChannel.send({ embeds: [embed] });
     
     // Confirm to the command user
-    return interaction.reply({ content: `✅ Tryout announcement has been sent to ${tryoutChannel}!`, ephemeral: true });
+    return interaction.editReply({ content: `✅ Tryout announcement has been sent to ${tryoutChannel}!`, ephemeral: true });
   },
 };
