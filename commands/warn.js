@@ -1,25 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-
-// In-memory storage for warnings (in a real bot, you'd want to use a database)
-// Maps guild IDs to maps of user IDs to arrays of warnings
-const warnings = new Map();
-
-function getWarnings(guildId, userId) {
-  if (!warnings.has(guildId)) {
-    warnings.set(guildId, new Map());
-  }
-  const guildWarnings = warnings.get(guildId);
-  if (!guildWarnings.has(userId)) {
-    guildWarnings.set(userId, []);
-  }
-  return guildWarnings.get(userId);
-}
-
-function addWarning(guildId, userId, warning) {
-  const userWarnings = getWarnings(guildId, userId);
-  userWarnings.push(warning);
-  return userWarnings.length;
-}
+const { getWarnings, addWarning, removeWarning } = require('../utils/postgresDB');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -56,6 +36,8 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
+    await interaction.deferReply();
+    
     const subcommand = interaction.options.getSubcommand();
     const targetUser = interaction.options.getUser('user');
     const guildId = interaction.guild.id;
@@ -63,14 +45,21 @@ module.exports = {
     if (subcommand === 'add') {
       const reason = interaction.options.getString('reason');
       
-      // Add the warning
-      const warning = {
-        reason,
-        moderator: interaction.user.id,
-        timestamp: new Date().toISOString()
-      };
+      // Add the warning to database
+      const warningId = await addWarning(
+        guildId, 
+        targetUser.id, 
+        reason, 
+        interaction.user.tag
+      );
       
-      const warningCount = addWarning(guildId, targetUser.id, warning);
+      if (!warningId) {
+        return interaction.editReply({ content: '❌ Failed to add warning to database.' });
+      }
+      
+      // Get updated warning count
+      const userWarnings = await getWarnings(guildId, targetUser.id);
+      const warningCount = userWarnings.length;
       
       // Create an embed for the user being warned
       const userEmbed = new EmbedBuilder()
@@ -101,23 +90,23 @@ module.exports = {
           { name: 'Reason', value: reason, inline: false },
           { name: 'Warned by', value: interaction.user.tag, inline: true }
         )
+        .setFooter({ text: `Warning ID: ${warningId}` })
         .setTimestamp();
       
-      return interaction.reply({ embeds: [confirmEmbed] });
+      return interaction.editReply({ embeds: [confirmEmbed] });
     }
     
     else if (subcommand === 'list') {
-      const userWarnings = getWarnings(guildId, targetUser.id);
+      const userWarnings = await getWarnings(guildId, targetUser.id);
       
       if (userWarnings.length === 0) {
-        return interaction.reply({ content: `${targetUser.tag} has no warnings.` });
+        return interaction.editReply({ content: `${targetUser.tag} has no warnings.` });
       }
       
       // Format the warnings
       const warningsList = userWarnings.map((warning, index) => {
-        const moderator = interaction.client.users.cache.get(warning.moderator)?.tag || 'Unknown moderator';
-        const date = new Date(warning.timestamp).toLocaleDateString();
-        return `**Warning ${index + 1}** (${date})\n**Reason:** ${warning.reason}\n**Moderator:** ${moderator}`;
+        const date = new Date(warning.warned_at).toLocaleDateString();
+        return `**Warning ${index + 1}** (ID: ${warning.id}) - ${date}\n**Reason:** ${warning.warning}\n**Moderator:** ${warning.warned_by}`;
       }).join('\n\n');
       
       const embed = new EmbedBuilder()
@@ -127,32 +116,35 @@ module.exports = {
         .setFooter({ text: `Total warnings: ${userWarnings.length}` })
         .setTimestamp();
       
-      return interaction.reply({ embeds: [embed] });
+      return interaction.editReply({ embeds: [embed] });
     }
     
     else if (subcommand === 'clear') {
-      if (!warnings.has(guildId) || !warnings.get(guildId).has(targetUser.id) || 
-          warnings.get(guildId).get(targetUser.id).length === 0) {
-        return interaction.reply({ content: `${targetUser.tag} has no warnings to clear.` });
+      // Get current warnings
+      const userWarnings = await getWarnings(guildId, targetUser.id);
+      
+      if (userWarnings.length === 0) {
+        return interaction.editReply({ content: `${targetUser.tag} has no warnings to clear.` });
       }
       
-      // Get the number of warnings before clearing
-      const warningCount = warnings.get(guildId).get(targetUser.id).length;
-      
-      // Clear the warnings
-      warnings.get(guildId).set(targetUser.id, []);
+      // Clear all warnings
+      let successCount = 0;
+      for (const warning of userWarnings) {
+        const success = await removeWarning(warning.id);
+        if (success) successCount++;
+      }
       
       const embed = new EmbedBuilder()
         .setTitle('Warnings Cleared')
         .setColor('#00a86b')
-        .setDescription(`All warnings (${warningCount}) for ${targetUser.tag} have been cleared.`)
+        .setDescription(`${successCount} of ${userWarnings.length} warnings for ${targetUser.tag} have been cleared.`)
         .addFields(
           { name: 'User', value: `${targetUser}`, inline: true },
           { name: 'Cleared by', value: interaction.user.tag, inline: true }
         )
         .setTimestamp();
       
-      return interaction.reply({ embeds: [embed] });
+      return interaction.editReply({ embeds: [embed] });
     }
   },
 };

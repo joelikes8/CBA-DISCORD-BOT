@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { addTryoutLog } = require('../utils/postgresDB');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -33,11 +34,25 @@ module.exports = {
     const sessionType = interaction.options.getString('session_type');
     const result = interaction.options.getString('result');
     const notes = interaction.options.getString('notes') || 'None';
+    const loggedBy = interaction.user.tag;
     
     // Set color based on result
     const resultColor = result === 'Passed' ? '#33cc33' : '#ff0000'; // Green for pass, Red for fail
     
     try {
+      // Save to database
+      const logId = await addTryoutLog(
+        robloxUsername,
+        sessionType,
+        result,
+        notes,
+        loggedBy
+      );
+      
+      if (!logId) {
+        return interaction.editReply({ content: '❌ Failed to save tryout log to database.' });
+      }
+      
       // Create a log embed with the requested format
       const logEmbed = new EmbedBuilder()
         .setTitle(`📋 Tryout Log Submitted:`)
@@ -49,6 +64,7 @@ module.exports = {
           `📝 Notes: ${notes}\n` +
           `📅 Logged by: ${interaction.user}`
         )
+        .setFooter({ text: `Log ID: ${logId}` })
         .setTimestamp();
       
       // Reply with the log embed
