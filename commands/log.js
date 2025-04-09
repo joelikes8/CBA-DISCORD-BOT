@@ -3,98 +3,62 @@ const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('disc
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('log')
-    .setDescription('Log moderation actions')
-    .addUserOption(option => 
-      option.setName('user')
-        .setDescription('Target user of the action')
+    .setDescription('Log a tryout or training result')
+    .addStringOption(option => 
+      option.setName('roblox_username')
+        .setDescription('Roblox username of the recruit')
         .setRequired(true))
     .addStringOption(option =>
-      option.setName('action')
-        .setDescription('Type of action taken')
+      option.setName('session_type')
+        .setDescription('Type of session (Tryout or Training)')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('result')
+        .setDescription('Result of the tryout/training')
         .setRequired(true)
         .addChoices(
-          { name: 'Warn', value: 'warn' },
-          { name: 'Mute', value: 'mute' },
-          { name: 'Kick', value: 'kick' },
-          { name: 'Ban', value: 'ban' },
-          { name: 'Tryout', value: 'tryout' },
-          { name: 'Verification', value: 'verify' },
-          { name: 'Other', value: 'other' }
+          { name: 'Passed', value: 'Passed' },
+          { name: 'Failed', value: 'Failed' }
         ))
     .addStringOption(option =>
-      option.setName('reason')
-        .setDescription('Reason for the action')
-        .setRequired(true))
-    .addStringOption(option =>
       option.setName('notes')
-        .setDescription('Additional notes (optional)')
+        .setDescription('Additional notes about the tryout/training')
         .setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(interaction) {
     await interaction.deferReply();
     
-    const targetUser = interaction.options.getUser('user');
-    const action = interaction.options.getString('action');
-    const reason = interaction.options.getString('reason');
+    const robloxUsername = interaction.options.getString('roblox_username');
+    const sessionType = interaction.options.getString('session_type');
+    const result = interaction.options.getString('result');
     const notes = interaction.options.getString('notes') || 'None';
     
-    // Create colors for different action types
-    const actionColors = {
-      warn: '#ffcc00',   // Yellow
-      mute: '#ff9933',   // Orange
-      kick: '#ff6600',   // Dark Orange
-      ban: '#ff0000',    // Red
-      tryout: '#3399ff', // Blue
-      verify: '#33cc33', // Green
-      other: '#cc99ff'   // Purple
-    };
-    
-    // Create icons for different action types
-    const actionIcons = {
-      warn: '⚠️',
-      mute: '🔇',
-      kick: '👢',
-      ban: '🔨',
-      tryout: '🎯',
-      verify: '✅',
-      other: '📝'
-    };
-    
-    // Format the action name
-    const actionName = action.charAt(0).toUpperCase() + action.slice(1);
+    // Set color based on result
+    const resultColor = result === 'Passed' ? '#33cc33' : '#ff0000'; // Green for pass, Red for fail
     
     try {
-      // Create a log embed
+      // Create a log embed with the requested format
       const logEmbed = new EmbedBuilder()
-        .setTitle(`${actionIcons[action]} ${actionName} Log`)
-        .setColor(actionColors[action])
-        .addFields(
-          { name: 'User', value: `${targetUser} (${targetUser.tag})`, inline: true },
-          { name: 'User ID', value: targetUser.id, inline: true },
-          { name: 'Action', value: actionName, inline: true },
-          { name: 'Reason', value: reason, inline: false },
-          { name: 'Notes', value: notes, inline: false },
-          { name: 'Moderator', value: interaction.user.tag, inline: true },
-          { name: 'Date', value: new Date().toLocaleString(), inline: true }
+        .setTitle(`📋 Tryout Log Submitted:`)
+        .setColor(resultColor)
+        .setDescription(
+          `👤 Recruit: ${robloxUsername}\n` +
+          `🎯 Tryout/Training: ${sessionType}\n` +
+          `✅ Result: ${result}\n` +
+          `📝 Notes: ${notes}\n` +
+          `📅 Logged by: ${interaction.user}`
         )
         .setTimestamp();
-      
-      // Add user avatar if available
-      if (targetUser.avatar) {
-        logEmbed.setThumbnail(targetUser.displayAvatarURL({ dynamic: true }));
-      }
       
       // Reply with the log embed
       await interaction.editReply({ embeds: [logEmbed] });
       
-      // Ideally, in a real bot, you'd also:
-      // 1. Send this to a dedicated logging channel
-      // 2. Store it in a database for audit history
+      // Additional log to a dedicated channel could be added here
       
     } catch (error) {
-      console.error(`Error logging action:`, error);
-      return interaction.editReply({ content: `❌ Failed to log action: ${error.message}` });
+      console.error(`Error logging tryout:`, error);
+      return interaction.editReply({ content: `❌ Failed to log tryout: ${error.message}` });
     }
   },
 };
