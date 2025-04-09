@@ -216,10 +216,16 @@ async function getBlacklistedGroups() {
 // Tryout channel functions
 async function setTryoutChannel(guildId, channelId) {
   try {
+    // Make sure guild and channel IDs are properly formatted as strings
+    const guildIdStr = String(guildId);
+    const channelIdStr = String(channelId);
+    
+    console.log(`Setting tryout channel: Guild ID = ${guildIdStr}, Channel ID = ${channelIdStr}`);
+    
     await pool.query(
       'INSERT INTO tryout_channels (guild_id, channel_id) VALUES ($1, $2) ' +
       'ON CONFLICT (guild_id) DO UPDATE SET channel_id = $2, set_at = NOW()',
-      [guildId, channelId]
+      [guildIdStr, channelIdStr]
     );
     return true;
   } catch (error) {
@@ -230,11 +236,20 @@ async function setTryoutChannel(guildId, channelId) {
 
 async function getTryoutChannel(guildId) {
   try {
+    // Make sure guild ID is properly formatted as string
+    const guildIdStr = String(guildId);
+    
+    console.log(`Getting tryout channel for Guild ID = ${guildIdStr}`);
+    
     const result = await pool.query(
       'SELECT channel_id FROM tryout_channels WHERE guild_id = $1',
-      [guildId]
+      [guildIdStr]
     );
-    return result.rows[0]?.channel_id || null;
+    
+    const channelId = result.rows[0]?.channel_id || null;
+    console.log(`Found channel ID: ${channelId}`);
+    
+    return channelId;
   } catch (error) {
     console.error('[ERROR] Failed to get tryout channel:', error);
     return null;
