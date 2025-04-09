@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { getTryoutChannel } = require('../utils/database');
-const { getVerifiedUser } = require('../utils/database');
+const { getTryoutChannel, getVerifiedUser } = require('../utils/database');
 const { getPlayerAvatar } = require('../utils/robloxAPI');
 
 module.exports = {
@@ -33,63 +32,74 @@ module.exports = {
     const lockedMinutes = interaction.options.getInteger('locked');
     
     // Check if tryout channel has been set up
-    const tryoutChannelId = getTryoutChannel(interaction.guild.id);
+    const tryoutChannelId = await getTryoutChannel(interaction.guild.id);
     if (!tryoutChannelId) {
       return interaction.editReply({ content: '❌ Tryout announcement channel has not been set up yet. Please use `/setuptryout` first.', ephemeral: true });
     }
     
+    console.log(`Host command: Found tryout channel ID in database: ${tryoutChannelId}`);
+    
     // Get the tryout channel
-    const tryoutChannel = await interaction.guild.channels.fetch(tryoutChannelId).catch(() => null);
-    if (!tryoutChannel) {
-      return interaction.editReply({ content: '❌ The configured tryout channel no longer exists. Please use `/setuptryout` to set a new one.', ephemeral: true });
-    }
-    
-    // Calculate the unlock time
-    const now = new Date();
-    const unlockTime = new Date(now.getTime() + lockedMinutes * 60000);
-    const unlockTimeString = `<t:${Math.floor(unlockTime.getTime() / 1000)}:F>`;
-    const relativeTimeString = `<t:${Math.floor(unlockTime.getTime() / 1000)}:R>`;
-    
-    // Try to get the host's Roblox avatar
-    let avatarUrl = null;
-    
     try {
-      // Check if the user is verified with Roblox
-      const verifiedUser = await getVerifiedUser(interaction.user.id);
+      const tryoutChannel = await interaction.guild.channels.fetch(tryoutChannelId);
       
-      if (verifiedUser) {
-        // Get the user's Roblox avatar URL
-        avatarUrl = await getPlayerAvatar(verifiedUser.roblox_user_id);
+      if (!tryoutChannel) {
+        console.log('Host command: Channel fetch returned null but did not throw');
+        return interaction.editReply({ content: '❌ The configured tryout channel could not be found. Please use `/setuptryout` to set a new one.', ephemeral: true });
       }
+      
+      console.log(`Host command: Successfully fetched channel: ${tryoutChannel.name} (${tryoutChannel.id})`);
+      
+      // Calculate the unlock time
+      const now = new Date();
+      const unlockTime = new Date(now.getTime() + lockedMinutes * 60000);
+      const unlockTimeString = `<t:${Math.floor(unlockTime.getTime() / 1000)}:F>`;
+      const relativeTimeString = `<t:${Math.floor(unlockTime.getTime() / 1000)}:R>`;
+      
+      // Try to get the host's Roblox avatar
+      let avatarUrl = null;
+      
+      try {
+        // Check if the user is verified with Roblox
+        const verifiedUser = await getVerifiedUser(interaction.user.id);
+        
+        if (verifiedUser) {
+          // Get the user's Roblox avatar URL
+          avatarUrl = await getPlayerAvatar(verifiedUser.roblox_user_id);
+        }
+      } catch (error) {
+        console.error(`[ERROR] Failed to get host avatar:`, error);
+        // Continue without avatar if there's an error
+      }
+      
+      // Create the announcement embed
+      const embed = new EmbedBuilder()
+        .setTitle('🎖️ Tryout Session Announced')
+        .setColor('#2a2d31')
+        .setDescription(`A new tryout session has been scheduled!`)
+        .addFields(
+          { name: 'Location', value: location, inline: true },
+          { name: 'Pad Number', value: padNumber.toString(), inline: true },
+          { name: 'Hosted By', value: `${interaction.user}`, inline: true },
+          { name: 'Status', value: lockedMinutes > 0 ? `🔒 Locked until ${unlockTimeString}` : '🔓 Open immediately', inline: false },
+          { name: 'Instructions', value: 'Please join the Roblox game and wait at the specified location for further instructions.', inline: false }
+        )
+        .setTimestamp()
+        .setFooter({ text: lockedMinutes > 0 ? `Unlocks ${relativeTimeString}` : 'Tryout open now' });
+      
+      // Add the host's Roblox avatar if available
+      if (avatarUrl) {
+        embed.setThumbnail(avatarUrl);
+      }
+      
+      // Send the announcement to the tryout channel
+      await tryoutChannel.send({ embeds: [embed] });
+      
+      // Confirm to the command user
+      return interaction.editReply({ content: `✅ Tryout announcement has been sent to ${tryoutChannel}!`, ephemeral: true });
     } catch (error) {
-      console.error(`[ERROR] Failed to get host avatar:`, error);
-      // Continue without avatar if there's an error
+      console.error(`[ERROR] Failed to fetch or use tryout channel:`, error);
+      return interaction.editReply({ content: `❌ Error accessing the tryout channel: ${error.message}. Please use \`/setuptryout\` to set a new one.`, ephemeral: true });
     }
-    
-    // Create the announcement embed
-    const embed = new EmbedBuilder()
-      .setTitle('🎖️ Tryout Session Announced')
-      .setColor('#2a2d31')
-      .setDescription(`A new tryout session has been scheduled!`)
-      .addFields(
-        { name: 'Location', value: location, inline: true },
-        { name: 'Pad Number', value: padNumber.toString(), inline: true },
-        { name: 'Hosted By', value: `${interaction.user}`, inline: true },
-        { name: 'Status', value: lockedMinutes > 0 ? `🔒 Locked until ${unlockTimeString}` : '🔓 Open immediately', inline: false },
-        { name: 'Instructions', value: 'Please join the Roblox game and wait at the specified location for further instructions.', inline: false }
-      )
-      .setTimestamp()
-      .setFooter({ text: lockedMinutes > 0 ? `Unlocks ${relativeTimeString}` : 'Tryout open now' });
-    
-    // Add the host's Roblox avatar if available
-    if (avatarUrl) {
-      embed.setThumbnail(avatarUrl);
-    }
-    
-    // Send the announcement to the tryout channel
-    await tryoutChannel.send({ embeds: [embed] });
-    
-    // Confirm to the command user
-    return interaction.editReply({ content: `✅ Tryout announcement has been sent to ${tryoutChannel}!`, ephemeral: true });
   },
 };
