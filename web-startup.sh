@@ -29,6 +29,21 @@ echo ""
 # Run the direct fix script
 node direct-undici-fix.js
 
+# Validate the Discord token
+echo ""
+echo "======================= DISCORD TOKEN CHECK ======================="
+echo "CHECKING DISCORD BOT TOKEN VALIDITY"
+echo "This ensures the bot can connect to Discord API"
+echo "=================================================================="
+echo ""
+
+# Run the Discord token validation
+node ensure-discord-login.js || {
+  echo "ERROR: Discord token validation failed. Please check your DISCORD_TOKEN environment variable."
+  echo "The web server will start, but the Discord bot may not function properly."
+  sleep 2
+}
+
 # Print information about ports
 echo ""
 echo "======================= PORT NOTICE ======================="
