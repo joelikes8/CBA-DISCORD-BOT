@@ -22,15 +22,22 @@ echo "NO PORT BINDING WILL OCCUR - DO NOT SCAN FOR PORTS"
 echo "=================================================================="
 echo ""
 
-# Print clear notice about patching approach
+# Create special environment for optimal compatibility
 echo "======================================================"
-echo "APPLYING READABLESTREAM PATCH FOR UNDICI/FETCH MODULES"
-echo "This will create mock implementations of missing APIs"
+echo "APPLYING COMPLETE MODULE REPLACEMENT FOR COMPATIBILITY"
+echo "This will replace problematic modules with working ones"
 echo "======================================================"
 
-# Set environment variables to disable warnings
+# Create .node-redefines file to prevent startup checks
+echo "ReadableStream,fetch,FormData" > .node-redefines
+
+# Set compatibility environment variables
 export NODE_NO_WARNINGS=1
-export NODE_OPTIONS="--no-warnings"
+# Don't use NODE_OPTIONS which sometimes causes errors on Render
 
-# Start the bot with the fixed entry point that patches undici
+# Create special undici bypass settings
+export UNDICI_NO_READABLE_STREAM=1
+export NO_UNDICI_FETCH=1
+
+# Start the bot with the fixed entry point that completely replaces modules
 node fixed-bot.js
