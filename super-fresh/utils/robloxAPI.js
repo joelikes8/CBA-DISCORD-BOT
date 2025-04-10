@@ -43,8 +43,8 @@ async function initializeRoblox() {
     try {
       console.log(`[INFO] Authenticating with Roblox (attempt ${retries + 1})...`);
       
-      // Clear any existing cookies first
-      await noblox.clearSession();
+      // Skip clearSession due to jar errors on Render
+      console.log('[INFO] Skipping clearSession due to Render compatibility');
       
       // Set the new cookie
       await noblox.setCookie(cookie);
