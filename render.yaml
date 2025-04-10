@@ -1,45 +1,61 @@
 services:
   # Node.js version (current)
-  - type: worker
+  - type: worker # IMPORTANT: This must be a worker, not a web service
     name: cba-discord-bot
     env: node
+    runtime: node
     buildCommand: npm install
     startCommand: node start-bot.js
     plan: free
     autoDeploy: true
-    # No healthCheckPath needed for worker services
+    # Worker services don't need and shouldn't use these web-related settings:
+    # - healthCheckPath
+    # - port
     envVars:
       - key: DISCORD_TOKEN
         sync: false
+        # This is the Discord bot token from the Discord Developer Portal
       - key: APPLICATION_ID
         sync: false
+        # This is the application ID from the Discord Developer Portal
       - key: ROBLOX_COOKIE
         sync: false
+        # This is the .ROBLOSECURITY cookie for Roblox authentication
       - key: ROBLOX_GROUP_ID
         sync: false
+        # This is the Roblox group ID number
       - key: DATABASE_URL
         sync: false
+        # This is the PostgreSQL connection URL
 
   # Python version (commented out for future use)
   # Uncomment this section and comment out the Node.js section above
   # when you want to switch to the Python version
   #
-  # - type: worker
+  # - type: worker # IMPORTANT: This must be a worker, not a web service
   #   name: cba-discord-bot-python
   #   env: python
+  #   runtime: python3
   #   buildCommand: pip install -r python_version/requirements.txt
   #   startCommand: python python_version/start_bot.py
   #   plan: free
   #   autoDeploy: true
-  #   # No healthCheckPath needed for worker services
+  #   # Worker services don't need and shouldn't use these web-related settings:
+  #   # - healthCheckPath
+  #   # - port
   #   envVars:
   #     - key: DISCORD_TOKEN
   #       sync: false
+  #       # This is the Discord bot token from the Discord Developer Portal
   #     - key: APPLICATION_ID
   #       sync: false
+  #       # This is the application ID from the Discord Developer Portal
   #     - key: ROBLOX_COOKIE
   #       sync: false
+  #       # This is the .ROBLOSECURITY cookie for Roblox authentication
   #     - key: ROBLOX_GROUP_ID
   #       sync: false
+  #       # This is the Roblox group ID number
   #     - key: DATABASE_URL
   #       sync: false
+  #       # This is the PostgreSQL connection URL

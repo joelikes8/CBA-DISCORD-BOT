@@ -73,30 +73,71 @@ async function deployCommands() {
 async function startBot() {
   console.log('Starting Discord bot...');
   
-  const botProcess = spawn('node', ['index.js']);
-  
-  botProcess.stdout.on('data', (data) => {
-    console.log(`[BOT] ${data.toString().trim()}`);
-  });
-  
-  botProcess.stderr.on('data', (data) => {
-    console.error(`[BOT ERROR] ${data.toString().trim()}`);
-  });
-  
-  botProcess.on('close', (code) => {
-    console.log(`[BOT] Process exited with code ${code}`);
+  try {
+    // Check if the token is valid before starting the bot
+    if (!process.env.DISCORD_TOKEN) {
+      console.error('[CRITICAL ERROR] DISCORD_TOKEN not set or invalid');
+      console.error('[INFO] Please ensure DISCORD_TOKEN is correctly set in environment variables');
+      // Don't restart immediately if token is missing - wait longer
+      console.log('[BOT] Will attempt restart in 60 seconds...');
+      setTimeout(() => {
+        startBot();
+      }, 60000);
+      return;
+    }
+
+    // Log more environment details for debugging
+    console.log('[DEBUG] Node version:', process.version);
+    console.log('[DEBUG] Discord token length:', process.env.DISCORD_TOKEN ? process.env.DISCORD_TOKEN.length : 0);
+    console.log('[DEBUG] Application ID present:', !!process.env.APPLICATION_ID);
     
-    // Restart the bot after a delay
-    console.log('[BOT] Restarting in 10 seconds...');
+    const botProcess = spawn('node', ['index.js']);
+    
+    botProcess.stdout.on('data', (data) => {
+      console.log(`[BOT] ${data.toString().trim()}`);
+    });
+    
+    botProcess.stderr.on('data', (data) => {
+      console.error(`[BOT ERROR] ${data.toString().trim()}`);
+    });
+    
+    let heartbeatInterval;
+    
+    botProcess.on('close', (code) => {
+      console.log(`[BOT] Process exited with code ${code}`);
+      
+      // Clear heartbeat interval when process exits
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+      
+      if (code === 1) {
+        console.error('[BOT CRASH] Bot crashed with exit code 1. This might indicate:');
+        console.error('  - Invalid token or permissions');
+        console.error('  - Network connectivity issues');
+        console.error('  - Discord API rate limiting');
+        console.error('  - Uncaught exceptions in the code');
+      }
+      
+      // Restart the bot after a delay
+      console.log('[BOT] Restarting in 30 seconds...');
+      setTimeout(() => {
+        startBot();
+      }, 30000); // Increased delay to avoid rapid restarts
+    });
+    
+    // Implement heartbeat mechanism
+    heartbeatInterval = setInterval(() => {
+      console.log('[HEARTBEAT] Bot is still running at', new Date().toISOString());
+    }, 300000); // Log every 5 minutes to keep the process active
+    
+  } catch (error) {
+    console.error('[FATAL ERROR] Error starting bot process:', error);
+    console.log('[BOT] Will attempt restart in 60 seconds...');
     setTimeout(() => {
       startBot();
-    }, 10000);
-  });
-  
-  // Implement heartbeat mechanism
-  setInterval(() => {
-    console.log('[HEARTBEAT] Bot is still running');
-  }, 300000); // Log every 5 minutes to keep the process active
+    }, 60000);
+  }
 }
 
 // Main function
