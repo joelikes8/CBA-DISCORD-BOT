@@ -54,4 +54,9 @@ echo ""
 
 # Start the web server wrapper which will run the Discord bot in the background
 echo "Starting Discord bot with web server wrapper..."
-NODE_OPTIONS="--require ./direct-undici-fix.js" node web-server.js
+echo ""
+echo "======================= EXTREME MODE ======================="
+echo "USING EXTREME COMPATIBILITY MODE FOR RENDER"
+echo "This completely replaces problematic modules at the Node.js level"
+echo "==========================================================="
+NODE_OPTIONS="--require ./extreme-fix.js" node web-server.js

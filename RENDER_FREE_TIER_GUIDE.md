@@ -43,22 +43,24 @@ The web service wrapper:
 4. Provides health check endpoints for Render
 5. Automatically restarts the bot if it crashes
 
-## Advanced ReadableStream Error Fix
+## Extreme ReadableStream Error Fix
 
 The deployment includes our most aggressive solution yet for the ReadableStream error:
 
-1. The `direct-undici-fix.js` script:
-   - Directly edits the problematic undici module files at runtime
-   - Adds all required polyfills for web API compatibility
-   - Is loaded using Node's `--require` flag to ensure it runs before anything else
+1. The `extreme-fix.js` script:
+   - **Completely hijacks** Node.js module loading system
+   - Intercepts and replaces problematic modules before they're loaded
+   - Provides complete mock implementations of all web APIs
+   - Completely bypasses the undici ReadableStream implementation
 
 2. Multiple layers of protection:
-   - Direct file patching of the problematic code
-   - Global polyfills for all required classes
+   - Module loader interception for complete control
+   - Direct replacement of problematic module content
+   - Global polyfills for all required web APIs
    - Special environment variables to disable problematic features
    - Runtime interception of module loading
 
-This multi-layered approach ensures the Discord bot will work even in Render's limited environment.
+This extreme approach ensures the Discord bot will work even in Render's limited environment by preventing the problematic code from ever being loaded.
 
 ## Verifying Deployment
 

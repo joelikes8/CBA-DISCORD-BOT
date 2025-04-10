@@ -218,15 +218,18 @@ server.listen(port, '0.0.0.0', () => {
 function startDiscordBot() {
   console.log('[BOT] Starting Discord bot in background mode...');
   
-  // Use our special direct-fix approach that fixes ReadableStream issues
-  const botProcess = spawn('node', ['--require', './direct-undici-fix.js', 'index.js'], {
+  // Use our extreme fix that completely replaces problematic modules
+  console.log('[BOT] Using extreme compatibility mode for Render');
+  const botProcess = spawn('node', ['--require', './extreme-fix.js', 'index.js'], {
     stdio: 'pipe', // Capture stdout and stderr
     detached: false, // Keep it attached to this process
     env: {
       ...process.env,
       RENDER: 'true',
       UNDICI_NO_READABLE_STREAM: '1',
-      NO_UNDICI_FETCH: '1'
+      NO_UNDICI_FETCH: '1',
+      NODE_NO_WARNINGS: '1',
+      EXTREME_RENDER_FIX: 'true'
     }
   });
   
