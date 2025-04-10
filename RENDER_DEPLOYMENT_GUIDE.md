@@ -1,87 +1,79 @@
-# Deploying CBA Discord Bot to Render
+# Render Deployment Guide
 
-This guide will walk you through the process of deploying your Discord bot to Render.com.
+This guide explains how to deploy the Discord bot to Render for 24/7 uptime.
 
-## Prerequisites
+## Deployment Options
 
-1. A Render.com account (you can sign up for free at https://render.com)
-2. Your GitHub repository with the bot code
-3. Your bot's required environment variables:
-   - `DISCORD_TOKEN`
-   - `APPLICATION_ID`
-   - `ROBLOX_COOKIE`
-   - `ROBLOX_GROUP_ID`
-   - `DATABASE_URL` (Render can provide a PostgreSQL database)
+### Node.js Version (Current)
 
-## Deployment Steps
+The main version of the bot is built with Node.js and is ready for deployment on Render as a background worker.
 
-### Option 1: Deploy with Render Blueprint (Recommended)
+### Python Version (In Development)
 
-1. Log in to your Render account
-2. Click the "New +" button and select "Blueprint"
-3. Connect your GitHub account if you haven't already
-4. Select the repository with your bot code
-5. Render will automatically detect the `render.yaml` file
-6. Click "Apply" to create the service
-7. Enter your environment variables when prompted
-8. Wait for the deployment to complete
+A Python version of the bot is currently under development, which will provide easier management in the future.
 
-### Option 2: Deploy Manually
+## Setting Up on Render
 
-1. Log in to your Render account
-2. Click the "New +" button and select "Web Service"
-3. Connect your GitHub account if you haven't already
-4. Select the repository with your bot code
-5. Configure the following settings:
-   - **Name**: `cba-discord-bot` (or any name you prefer)
-   - **Environment**: `Node`
-   - **Build Command**: `npm install`
-   - **Start Command**: `node index.js`
-   - **Plan**: Free (or select a paid plan if needed)
-6. Click "Advanced" and add your environment variables:
-   - `DISCORD_TOKEN`
-   - `APPLICATION_ID`
-   - `ROBLOX_COOKIE`
-   - `ROBLOX_GROUP_ID`
-   - `DATABASE_URL`
-7. Click "Create Web Service"
-8. Wait for the deployment to complete
+1. **Create a Render Account**
+   - Sign up at [render.com](https://render.com)
 
-## Setting Up a PostgreSQL Database on Render
+2. **Create a New Service**
+   - Click **New** and select **Background Worker**
+   - Connect your GitHub repository
+   - Name your service (e.g., `cba-discord-bot`)
 
-1. In your Render dashboard, click the "New +" button and select "PostgreSQL"
-2. Configure your database settings:
-   - **Name**: `cba-bot-db` (or any name you prefer)
-   - **Database**: `cba_bot` (or any name you prefer)
-   - **User**: Leave the default or set a custom username
-   - **Plan**: Free (or select a paid plan if needed)
-3. Click "Create Database"
-4. Once created, go to your database dashboard and find the "Connection" tab
-5. Copy the "Internal Database URL" - this is what you'll use for your `DATABASE_URL` environment variable
+3. **Configure Build Settings**
+   - Build Command: `npm install`
+   - Start Command: `node start-bot.js`
+   - Select **Free** plan
 
-## Before First Deployment
+4. **Set Environment Variables**
+   Go to the **Environment** tab and add the following:
+   - `DISCORD_TOKEN`: Your Discord bot token
+   - `APPLICATION_ID`: Your Discord application ID
+   - `ROBLOX_COOKIE`: Your Roblox account cookie
+   - `ROBLOX_GROUP_ID`: Your Roblox group ID
+   - `DATABASE_URL`: PostgreSQL database connection URL
 
-Before your first deployment, make sure to:
-
-1. Replace the `package.json` file with `package.json.render` (rename it to `package.json`)
-2. Make sure your `.gitignore` file is correctly set up to avoid pushing sensitive data
-3. Deploy your Discord bot commands by running the command feature on Render after deployment:
-   - Go to your service dashboard
-   - Click "Shell" in the top right
-   - Run `node deploy-commands.js`
+5. **Advanced Options**
+   - Auto-Deploy: Enable
+   - Branch: `main` (or your default branch)
 
 ## Monitoring Your Bot
 
-1. After deployment, you can monitor your bot through Render's logs
-2. Go to your service dashboard and click "Logs" to see real-time logs
-3. Set up alerts in Render to get notified of any issues
+- Render provides logs for monitoring your bot's performance
+- You can view them in the **Logs** tab of your service
+- Check for any errors or issues that might indicate problems
 
-## Updating Your Bot
+## Keep Bot Online 24/7
 
-To update your bot:
-1. Push changes to your GitHub repository
-2. Render will automatically redeploy your bot with the new code
+The deployment is configured with:
 
-If you need to make manual changes:
-1. Go to your service dashboard
-2. Click "Manual Deploy" and select "Deploy latest commit"
+1. **Automatic crash recovery** - The bot will restart if it crashes
+2. **Heartbeat mechanism** - Regular checking to ensure the bot stays active
+3. **Error handling** - Proper logging of errors for debugging
+
+## Switching to Python Version (Future)
+
+When the Python version is ready:
+
+1. Update the build and start commands:
+   - Build Command: `pip install -r python_version/requirements.txt`
+   - Start Command: `python python_version/bot.py`
+
+2. Configure environment variables as above
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Check the logs in Render dashboard
+2. Verify all environment variables are correctly set
+3. Ensure your Discord bot token is valid
+4. Confirm your Roblox cookie is not expired
+
+## Support
+
+If you need help with deployment, contact:
+- GitHub Issues: Create an issue in the repository
+- Discord: Contact the development team through Discord

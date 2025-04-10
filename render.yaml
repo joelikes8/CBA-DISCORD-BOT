@@ -1,10 +1,13 @@
 services:
+  # Node.js version (current)
   - type: worker
     name: cba-discord-bot
     env: node
     buildCommand: npm install
-    startCommand: node deploy-commands.js && node index.js
+    startCommand: node start-bot.js
     plan: free
+    autoDeploy: true
+    healthCheckPath: /
     envVars:
       - key: DISCORD_TOKEN
         sync: false
@@ -16,3 +19,27 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+
+  # Python version (commented out for future use)
+  # Uncomment this section and comment out the Node.js section above
+  # when you want to switch to the Python version
+  #
+  # - type: worker
+  #   name: cba-discord-bot-python
+  #   env: python
+  #   buildCommand: pip install -r python_version/requirements.txt
+  #   startCommand: python python_version/start_bot.py
+  #   plan: free
+  #   autoDeploy: true
+  #   healthCheckPath: /
+  #   envVars:
+  #     - key: DISCORD_TOKEN
+  #       sync: false
+  #     - key: APPLICATION_ID
+  #       sync: false
+  #     - key: ROBLOX_COOKIE
+  #       sync: false
+  #     - key: ROBLOX_GROUP_ID
+  #       sync: false
+  #     - key: DATABASE_URL
+  #       sync: false
