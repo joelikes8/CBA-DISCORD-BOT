@@ -29,9 +29,9 @@ services:
       - key: RENDER_SERVICE_TYPE
         value: worker
         # This tells Render this is a worker service, not a web service
-      - key: NODE_OPTIONS
-        value: --no-experimental-fetch --no-experimental-global-fetch
-        # This fixes the ReadableStream error
+      - key: NODE_NO_WARNINGS
+        value: "1"
+        # This suppresses Node.js warnings
       - key: NO_PORT_SCAN
         value: "true"
         # This explicitly tells Render not to scan for ports

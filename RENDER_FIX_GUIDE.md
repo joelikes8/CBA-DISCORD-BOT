@@ -38,7 +38,7 @@ Add ALL of these environment variables:
 | ROBLOX_GROUP_ID | Your Roblox group ID | Required for group management |
 | DATABASE_URL | PostgreSQL connection URL | Required for database access |
 | RENDER_SERVICE_TYPE | worker | Prevents port scanning |
-| NODE_OPTIONS | --no-experimental-fetch --no-experimental-global-fetch | Fixes ReadableStream error |
+| NODE_NO_WARNINGS | 1 | Suppresses Node.js warnings |
 | NO_PORT_SCAN | true | Additional port scan prevention |
 
 ## Step 4: Deploy and Monitor
