@@ -39,5 +39,24 @@ export NODE_NO_WARNINGS=1
 export UNDICI_NO_READABLE_STREAM=1
 export NO_UNDICI_FETCH=1
 
-# Start the bot with the fixed entry point that completely replaces modules
-node fixed-bot.js
+# Try multiple startup methods to ensure one works
+
+echo "===== DIRECT RENDER FIX ====="
+echo "Running direct render fix with special startup file"
+
+# Method 1: Use our new super-aggressive render-start.js
+node render-start.js
+
+# If that fails, try the preload approach
+if [ $? -ne 0 ]; then
+  echo "===== PRELOAD APPROACH ====="
+  echo "First approach failed, trying node with preload"
+  node -r ./preload.js index.js
+fi
+
+# If that also fails, use fixed-bot as last resort
+if [ $? -ne 0 ]; then
+  echo "===== FIXED BOT APPROACH ====="
+  echo "Second approach failed, trying fixed-bot directly"
+  node fixed-bot.js
+fi
