@@ -1,0 +1,28 @@
+{
+  "name": "cba-discord-bot",
+  "version": "1.0.0",
+  "main": "render-worker.js",
+  "scripts": {
+    "start": "node render-worker.js",
+    "deploy-commands": "node deploy-commands.js",
+    "worker": "node render-worker.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["discord", "bot", "roblox", "verification", "worker"],
+  "author": "CBA",
+  "license": "ISC",
+  "description": "A Discord bot for a Roblox British army group with verification, rank management, tryout organization and blacklist checking features. Running as a background worker service.",
+  "engines": {
+    "node": ">=16.11.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "noblox.js": "^6.1.1",
+    "pg": "^8.14.1"
+  },
+  "render": {
+    "type": "worker",
+    "requiresPort": false,
+    "healthCheck": false
+  }
+}

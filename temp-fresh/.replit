@@ -67,7 +67,3 @@ args = "node deploy-commands.js"
 
 [deployment]
 run = ["sh", "-c", "node index.js"]
-
-[[ports]]
-localPort = 5000
-externalPort = 80

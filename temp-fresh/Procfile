@@ -1,0 +1,1 @@
+worker: node -r ./preload.js index.js
