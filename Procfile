@@ -1,1 +1,1 @@
-worker: node start-bot.js
+worker: node render-worker.js

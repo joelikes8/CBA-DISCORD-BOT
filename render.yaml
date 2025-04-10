@@ -4,13 +4,10 @@ services:
     name: cba-discord-bot
     env: node
     runtime: node
-    buildCommand: npm install
-    startCommand: node start-bot.js
+    buildCommand: npm install && echo "WORKER_SERVICE=true" > .env.render
+    startCommand: node render-worker.js
     plan: free
     autoDeploy: true
-    # Worker services don't need and shouldn't use these web-related settings:
-    # - healthCheckPath
-    # - port
     envVars:
       - key: DISCORD_TOKEN
         sync: false
@@ -27,6 +24,9 @@ services:
       - key: DATABASE_URL
         sync: false
         # This is the PostgreSQL connection URL
+      - key: RENDER_SERVICE_TYPE
+        value: worker
+        # This tells Render this is a worker service, not a web service
 
   # Python version (commented out for future use)
   # Uncomment this section and comment out the Node.js section above

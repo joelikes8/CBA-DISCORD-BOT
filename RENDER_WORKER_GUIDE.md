@@ -1,43 +1,83 @@
-# Deploying CBA Discord Bot as a Background Worker on Render
+# Render Worker Deployment Guide
 
-Discord bots should be deployed as background workers rather than web services, as they don't respond to HTTP requests but instead connect to Discord's gateway. Here's how to properly set up your bot on Render:
+This guide explains how to deploy the Discord bot as a background worker service on Render.
 
-## Steps for Manual Deployment
+## IMPORTANT: PREVENTING PORT SCANNING MESSAGES
 
-1. Log in to your Render account
-2. Click the "New +" button
-3. Select "Background Worker" (not Web Service)
-4. Connect your GitHub repository
-5. Configure the following:
-   - **Name**: `cba-discord-bot` (or any name you prefer)
-   - **Environment**: `Node`
-   - **Build Command**: `npm install`
-   - **Start Command**: `node deploy-commands.js && node index.js`
-   - **Plan**: Free (or select a paid plan if needed)
+The Discord bot uses a special configuration to prevent the "No open ports detected" scanning messages. 
+This is achieved through:
 
-## Environment Variables Setup
+1. Using a dedicated `render-worker.js` entry point
+2. Setting the `RENDER_SERVICE_TYPE=worker` environment variable
+3. Creating a `.render-no-web-service` file during startup
 
-In the "Environment" section, add all the required variables:
-- `DISCORD_TOKEN` (Your Discord bot token)
-- `APPLICATION_ID` (Your bot's application ID)
-- `ROBLOX_COOKIE` (Your Roblox security cookie)
-- `ROBLOX_GROUP_ID` (Your Roblox group ID)
-- `DATABASE_URL` (Your PostgreSQL database connection string)
+## Deployment Steps
 
-## Troubleshooting Deployment Issues
+1. **Create a new service on Render**
+   - Sign in to your Render dashboard
+   - Click "New" and select "Background Worker" (NOT "Web Service")
 
-If your deployment fails, check these common issues:
+2. **Connect to your GitHub repository**
+   - Select the GitHub repository where your bot code is stored
+   - If you don't see your repository, you may need to configure GitHub integration
 
-1. **Environment Variables**: Make sure all required variables are set correctly
-2. **Database Connection**: Verify your DATABASE_URL is correct and accessible from Render
-3. **Error Logs**: Check the Render logs for specific error messages
-4. **Memory Issues**: If the bot crashes due to memory limits, consider upgrading your plan
+3. **Configure the service**
+   - **Name**: Choose a name for your service (e.g., "cba-discord-bot")
+   - **Environment**: Select "Node"
+   - **Build Command**: `npm install && echo "WORKER_SERVICE=true" > .env.render`
+   - **Start Command**: `node render-worker.js`
+   - **Plan**: Select your plan (Free tier works fine)
 
-## Best Practices
+4. **Set environment variables**
+   - Click "Environment" and add the following variables:
+   
+   | Key | Value | Description |
+   |-----|-------|-------------|
+   | DISCORD_TOKEN | Your token | From Discord Developer Portal |
+   | APPLICATION_ID | Your app ID | From Discord Developer Portal |
+   | ROBLOX_COOKIE | Your cookie | .ROBLOSECURITY cookie value |
+   | ROBLOX_GROUP_ID | Your group ID | Roblox group ID number |
+   | DATABASE_URL | DB connection string | PostgreSQL connection URL |
+   | RENDER_SERVICE_TYPE | worker | Tells Render this is not a web service |
 
-1. **Auto-Deploy**: Keep auto-deploy enabled so your bot updates when you push to GitHub
-2. **Monitoring**: Set up health checks and notifications in Render
-3. **Database Management**: Use Render's PostgreSQL service for reliable database hosting
-4. **Security**: Never commit sensitive environment variables to your repository
+5. **Deploy the service**
+   - Click "Create Background Worker"
+   - Wait for the build and deployment to complete
 
-If you encounter any issues with deployment, contact Render support or check their documentation at https://render.com/docs
+## FIXING "Process exited with code 1" ERRORS
+
+If your bot is continuously restarting with "Process exited with code 1", check:
+
+1. **Discord Token Issues:**
+   - Verify the token is correct and not expired
+   - Check permissions and intents in Discord Developer Portal
+   - Generate a new token if needed
+
+2. **Environment Variables:**
+   - Make sure ALL required variables are set
+   - Check for typos in variable names or values
+
+3. **Render Dashboard Fixes:**
+   - Go to your service in Render dashboard
+   - Click "Manual Deploy" > "Clear Build Cache & Deploy"
+   - Watch the logs for specific error messages
+
+4. **Check Log Details:**
+   - The new `render-worker.js` script includes improved diagnostics
+   - Look for messages after "[DIAGNOSTIC]" in the logs
+   - These will help identify specific token or connection issues
+
+## DO NOT CREATE A WEB SERVICE
+
+This bot is specifically designed to run as a background worker. Do not:
+- Create it as a "Web Service" in Render
+- Modify the code to bind to a port
+- Add Express or other web server code
+
+The bot communicates directly with Discord through their API and does not need HTTP capability.
+
+## Maintenance
+
+- To update your bot, simply push changes to the connected GitHub repository
+- Render will automatically rebuild and redeploy your service
+- The bot includes built-in crash recovery and error handling
