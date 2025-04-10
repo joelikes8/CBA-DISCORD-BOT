@@ -266,13 +266,48 @@ async function getUserInfo(username) {
  */
 async function getUserBlurb(userId) {
   try {
-    // Try to get blurb through direct API
-    const response = await fetch(`https://users.roblox.com/v1/users/${userId}/description`);
-    const data = await response.json();
+    console.log(`[DEBUG] Getting blurb for user ${userId}...`);
     
-    if (data && data.description !== undefined) {
-      return data.description;
+    // First try the Roblox API v1 endpoint
+    try {
+      console.log(`[DEBUG] Trying Roblox API v1 endpoint for user description...`);
+      const response = await fetch(`https://users.roblox.com/v1/users/${userId}/description`);
+      
+      if (!response.ok) {
+        console.log(`[DEBUG] API request failed with status: ${response.status}`);
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      console.log(`[DEBUG] API response for blurb:`, data);
+      
+      if (data && data.description !== undefined) {
+        const blurb = data.description;
+        console.log(`[DEBUG] Successfully got blurb (${blurb.length} chars): "${blurb.substring(0, 50)}${blurb.length > 50 ? '...' : ''}"`);
+        return blurb;
+      } else {
+        console.log(`[DEBUG] No description found in API response`);
+      }
+    } catch (v1Error) {
+      console.error(`[ERROR] Failed to get blurb using v1 API:`, v1Error);
     }
+    
+    // If v1 API fails, try backup method using noblox.js
+    try {
+      console.log(`[DEBUG] Trying noblox.js getPlayerInfo for blurb...`);
+      const playerInfo = await noblox.getPlayerInfo(userId);
+      if (playerInfo && playerInfo.blurb !== undefined) {
+        console.log(`[DEBUG] Successfully got blurb from noblox.js: "${playerInfo.blurb.substring(0, 50)}${playerInfo.blurb.length > 50 ? '...' : ''}"`);
+        return playerInfo.blurb;
+      } else {
+        console.log(`[DEBUG] No blurb found in noblox.js response`);
+      }
+    } catch (nobloxError) {
+      console.error(`[ERROR] Failed to get blurb using noblox.js:`, nobloxError);
+    }
+    
+    console.log(`[DEBUG] No blurb found for user ${userId}, returning empty string`);
     return '';
   } catch (error) {
     console.error(`[ERROR] Failed to get blurb for user ${userId}:`, error);

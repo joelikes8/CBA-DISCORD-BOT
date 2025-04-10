@@ -160,12 +160,35 @@ module.exports = {
     });
     
     // Check if the verification code is in the profile description
-    if (!userInfo.blurb || !userInfo.blurb.includes(pendingVerification.code)) {
+    console.log(`[DEBUG] Checking for code: "${pendingVerification.code}" in blurb: "${userInfo.blurb}"`);
+    console.log(`[DEBUG] Blurb type: ${typeof userInfo.blurb}, Length: ${userInfo.blurb ? userInfo.blurb.length : 0}`);
+    
+    // Try a more lenient check (case insensitive, trimmed)
+    const blurbLower = userInfo.blurb ? userInfo.blurb.toLowerCase().trim() : '';
+    const codeLower = pendingVerification.code.toLowerCase().trim();
+    
+    const exactMatch = userInfo.blurb && userInfo.blurb.includes(pendingVerification.code);
+    const looseMatch = blurbLower.includes(codeLower);
+    
+    console.log(`[DEBUG] Exact match: ${exactMatch}, Loose match: ${looseMatch}`);
+    
+    if (!userInfo.blurb || (!exactMatch && !looseMatch)) {
       console.log(`[INFO] Verification code ${pendingVerification.code} not found in blurb: ${userInfo.blurb?.substring(0, 50)}...`);
       return interaction.followUp({ 
-        content: `❌ Verification code not found in your Roblox profile description. Please make sure you've added code \`${pendingVerification.code}\` to your description and try again.`, 
+        content: `❌ Verification code not found in your Roblox profile description. Please make sure you've added code \`${pendingVerification.code}\` to your description and try again.
+
+Make sure:
+1. You've copied the exact code: \`${pendingVerification.code}\`
+2. It's in your Roblox profile description (About Me)
+3. There are no extra spaces or characters
+4. You've saved your profile after adding the code`, 
         ephemeral: true 
       });
+    }
+    
+    // If we got here with a loose match but not exact match, log it but continue
+    if (looseMatch && !exactMatch) {
+      console.log(`[INFO] Found code using loose match instead of exact match`);
     }
     
     console.log(`[INFO] Verification code found in blurb, proceeding with verification for user ${userId}`);
