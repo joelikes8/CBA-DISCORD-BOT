@@ -1,1 +1,1 @@
-worker: ./startup.sh
+worker: node -r ./preload.js index.js
