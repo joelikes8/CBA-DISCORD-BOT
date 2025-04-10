@@ -1,69 +1,25 @@
 services:
-  # Node.js version (current)
-  - type: worker # IMPORTANT: This must be a worker, not a web service
-    name: cba-discord-bot
+  # Background worker service (no web server)
+  - type: worker
+    name: discord-bot-worker
     env: node
-    runtime: node
     buildCommand: npm install && chmod +x startup.sh
     startCommand: ./startup.sh
     plan: free
-    autoDeploy: true
-    # DO NOT ADD ANY PORT CONFIGURATION HERE
-    # NO HEALTH CHECK PATHS OR PORT SETTINGS
     envVars:
-      - key: DISCORD_TOKEN
-        sync: false
-        # This is the Discord bot token from the Discord Developer Portal
-      - key: APPLICATION_ID
-        sync: false
-        # This is the application ID from the Discord Developer Portal
-      - key: ROBLOX_COOKIE
-        sync: false
-        # This is the .ROBLOSECURITY cookie for Roblox authentication
-      - key: ROBLOX_GROUP_ID
-        sync: false
-        # This is the Roblox group ID number
-      - key: DATABASE_URL
-        sync: false
-        # This is the PostgreSQL connection URL
       - key: RENDER_SERVICE_TYPE
         value: worker
-        # This tells Render this is a worker service, not a web service
       - key: NODE_NO_WARNINGS
-        value: "1"
-        # This suppresses Node.js warnings
+        value: 1
       - key: NO_PORT_SCAN
-        value: "true"
-        # This explicitly tells Render not to scan for ports
-
-  # Python version (commented out for future use)
-  # Uncomment this section and comment out the Node.js section above
-  # when you want to switch to the Python version
-  #
-  # - type: worker # IMPORTANT: This must be a worker, not a web service
-  #   name: cba-discord-bot-python
-  #   env: python
-  #   runtime: python3
-  #   buildCommand: pip install -r python_version/requirements.txt
-  #   startCommand: python python_version/start_bot.py
-  #   plan: free
-  #   autoDeploy: true
-  #   # Worker services don't need and shouldn't use these web-related settings:
-  #   # - healthCheckPath
-  #   # - port
-  #   envVars:
-  #     - key: DISCORD_TOKEN
-  #       sync: false
-  #       # This is the Discord bot token from the Discord Developer Portal
-  #     - key: APPLICATION_ID
-  #       sync: false
-  #       # This is the application ID from the Discord Developer Portal
-  #     - key: ROBLOX_COOKIE
-  #       sync: false
-  #       # This is the .ROBLOSECURITY cookie for Roblox authentication
-  #     - key: ROBLOX_GROUP_ID
-  #       sync: false
-  #       # This is the Roblox group ID number
-  #     - key: DATABASE_URL
-  #       sync: false
-  #       # This is the PostgreSQL connection URL
+        value: true
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: APPLICATION_ID
+        sync: false
+      - key: ROBLOX_COOKIE
+        sync: false
+      - key: ROBLOX_GROUP_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false
