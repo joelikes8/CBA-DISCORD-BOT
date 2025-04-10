@@ -160,36 +160,92 @@ module.exports = {
     });
     
     // Check if the verification code is in the profile description
-    console.log(`[DEBUG] Checking for code: "${pendingVerification.code}" in blurb: "${userInfo.blurb}"`);
-    console.log(`[DEBUG] Blurb type: ${typeof userInfo.blurb}, Length: ${userInfo.blurb ? userInfo.blurb.length : 0}`);
+    console.log(`[DEBUG] Starting verification polling for user ${pendingVerification.roblox_username} (${pendingVerification.roblox_user_id})`);
+    console.log(`[DEBUG] Verification code to match: "${pendingVerification.code}"`);
     
-    // Try a more lenient check (case insensitive, trimmed)
-    const blurbLower = userInfo.blurb ? userInfo.blurb.toLowerCase().trim() : '';
-    const codeLower = pendingVerification.code.toLowerCase().trim();
+    // First send a loading message
+    await interaction.followUp({ 
+      content: `⏳ Checking for verification code in your Roblox profile. We'll check every second for the next 30 seconds...`, 
+      ephemeral: true 
+    });
     
-    const exactMatch = userInfo.blurb && userInfo.blurb.includes(pendingVerification.code);
-    const looseMatch = blurbLower.includes(codeLower);
+    // Set up polling (check every second for up to 30 seconds)
+    const MAX_ATTEMPTS = 30;
+    let attempts = 0;
     
-    console.log(`[DEBUG] Exact match: ${exactMatch}, Loose match: ${looseMatch}`);
+    const checkProfile = async () => {
+      attempts++;
+      
+      // Refresh the user info each time
+      const refreshedUserInfo = await getUserInfo(pendingVerification.roblox_username);
+      
+      if (!refreshedUserInfo) {
+        console.log(`[ERROR] Failed to fetch refreshed user info on attempt ${attempts}`);
+        return false;
+      }
+      
+      console.log(`[DEBUG] Attempt ${attempts}: Checking for code in blurb: "${refreshedUserInfo.blurb}"`);
+      
+      // More comprehensive matching
+      // 1. Exact string match
+      const exactMatch = refreshedUserInfo.blurb && refreshedUserInfo.blurb.includes(pendingVerification.code);
+      
+      // 2. Case insensitive match
+      const blurbLower = refreshedUserInfo.blurb ? refreshedUserInfo.blurb.toLowerCase().trim() : '';
+      const codeLower = pendingVerification.code.toLowerCase().trim();
+      const caseInsensitiveMatch = blurbLower.includes(codeLower);
+      
+      // 3. Without spaces match
+      const blurbNoSpaces = refreshedUserInfo.blurb ? refreshedUserInfo.blurb.replace(/\s+/g, '') : '';
+      const codeNoSpaces = pendingVerification.code.replace(/\s+/g, '');
+      const noSpacesMatch = blurbNoSpaces.includes(codeNoSpaces);
+      
+      // 4. Check if code might be broken up (e.g., "ABC 123" vs "ABC123")
+      let brokenMatch = false;
+      if (pendingVerification.code.length > 3) {
+        const escapedCode = pendingVerification.code.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const flexibleRegex = new RegExp(escapedCode.split('').join('\\s*'), 'i');
+        brokenMatch = flexibleRegex.test(refreshedUserInfo.blurb || '');
+      }
+      
+      const isMatch = exactMatch || caseInsensitiveMatch || noSpacesMatch || brokenMatch;
+      
+      console.log(`[DEBUG] Attempt ${attempts} matches: exact=${exactMatch}, caseInsensitive=${caseInsensitiveMatch}, noSpaces=${noSpacesMatch}, broken=${brokenMatch}`);
+      
+      return isMatch;
+    };
     
-    if (!userInfo.blurb || (!exactMatch && !looseMatch)) {
-      console.log(`[INFO] Verification code ${pendingVerification.code} not found in blurb: ${userInfo.blurb?.substring(0, 50)}...`);
+    // Try once immediately
+    let verified = await checkProfile();
+    
+    // If not verified, start polling
+    if (!verified) {
+      for (let i = 0; i < MAX_ATTEMPTS; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        verified = await checkProfile();
+        if (verified) break;
+      }
+    }
+    
+    if (!verified) {
+      console.log(`[INFO] Verification failed after ${attempts} attempts. Code not found in profile.`);
       return interaction.followUp({ 
-        content: `❌ Verification code not found in your Roblox profile description. Please make sure you've added code \`${pendingVerification.code}\` to your description and try again.
+        content: `❌ Verification code not found in your Roblox profile description after ${attempts} attempts. 
 
 Make sure:
 1. You've copied the exact code: \`${pendingVerification.code}\`
 2. It's in your Roblox profile description (About Me)
 3. There are no extra spaces or characters
-4. You've saved your profile after adding the code`, 
+4. You've saved your profile after adding the code
+5. Try refreshing your Roblox profile page
+
+You can try the command again if you need more time.`, 
         ephemeral: true 
       });
     }
     
-    // If we got here with a loose match but not exact match, log it but continue
-    if (looseMatch && !exactMatch) {
-      console.log(`[INFO] Found code using loose match instead of exact match`);
-    }
+    // If we got here, verification successful
+    console.log(`[INFO] Verification successful after ${attempts} attempts!`);
     
     console.log(`[INFO] Verification code found in blurb, proceeding with verification for user ${userId}`);
     
