@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const { getUserInfo, getPlayerAvatar } = require('../utils/robloxAPI');
 const { setVerificationCode, setPendingVerification, removePendingVerification, getPendingVerification, setVerifiedUser } = require('../utils/database');
+const { setFormattedNickname } = require('../utils/nicknameFormatter');
 const noblox = require('noblox.js');
 
 function generateVerificationCode() {
@@ -255,11 +256,29 @@ module.exports = {
     // Clean up
     await removePendingVerification(userId);
     
-    // Update the user's nickname on the Discord server
+    // Update the user's nickname on the Discord server with formatted rank and username
     try {
       const member = interaction.member;
-      await member.setNickname(userInfo.displayName || userInfo.username);
-      console.log(`[INFO] Updated nickname for user ${userId} to ${userInfo.displayName || userInfo.username}`);
+      
+      // Set the formatted nickname with rank code
+      const nicknameResult = await setFormattedNickname(
+        member, 
+        userInfo.userId, 
+        userInfo.username
+      );
+      
+      if (nicknameResult.success) {
+        console.log(`[INFO] Updated nickname for user ${userId} to "${nicknameResult.nickname}"`);
+      } else {
+        console.error(`[WARNING] Failed to set formatted nickname: ${nicknameResult.error}`);
+        // Fallback to basic nickname if formatted one fails
+        try {
+          await member.setNickname(userInfo.displayName || userInfo.username);
+          console.log(`[INFO] Set basic nickname for user ${userId} to ${userInfo.displayName || userInfo.username}`);
+        } catch (fallbackError) {
+          console.error(`[ERROR] Fallback nickname also failed: ${fallbackError.message}`);
+        }
+      }
     } catch (error) {
       console.error(`[ERROR] Failed to update nickname for ${interaction.user.tag}:`, error);
       // Continue with verification even if nickname update fails

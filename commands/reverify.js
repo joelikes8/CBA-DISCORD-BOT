@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { getVerifiedUser, removeVerificationCode } = require('../utils/database');
+const { setFormattedNickname } = require('../utils/nicknameFormatter');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -56,6 +57,11 @@ module.exports = {
         });
       }
       
+      // Store previous Roblox info for logging
+      const previousRobloxUsername = verifiedData.robloxUsername || 'Unknown';
+      const previousRobloxId = verifiedData.robloxUserId || 'Unknown';
+      console.log(`[INFO] User ${interaction.user.tag} was previously verified as ${previousRobloxUsername} (${previousRobloxId})`);
+      
       // Remove their verification
       const removed = await removeVerificationCode(userId);
       
@@ -108,7 +114,10 @@ module.exports = {
         });
       }
       
-      const robloxUsername = verifiedData.robloxUsername;
+      // Store previous Roblox info for logging and for the embed
+      const previousRobloxUsername = verifiedData.robloxUsername || 'Unknown';
+      const previousRobloxId = verifiedData.robloxUserId || 'Unknown';
+      console.log(`[INFO] User ${targetUser.tag} was previously verified as ${previousRobloxUsername} (${previousRobloxId})`);
       
       // Remove their verification
       const removed = await removeVerificationCode(targetUser.id);
@@ -136,7 +145,8 @@ module.exports = {
         .setDescription(`You have successfully removed ${targetUser.tag}'s verification.`)
         .addFields(
           { name: 'Discord User', value: targetUser.tag, inline: true },
-          { name: 'Previous Roblox Account', value: robloxUsername || 'Unknown', inline: true },
+          { name: 'Previous Roblox Account', value: previousRobloxUsername, inline: true },
+          { name: 'Previous Roblox ID', value: previousRobloxId.toString(), inline: true },
           { name: 'Next Steps', value: `The user will need to use the /verify command to verify again.` }
         );
       
