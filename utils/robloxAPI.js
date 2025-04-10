@@ -117,7 +117,9 @@ async function getUserInfo(username) {
     let retries = 0;
     const maxRetries = 3;
     
+    // Try multiple methods to find the user
     while (!userId && retries < maxRetries) {
+      // METHOD 1: Direct username lookup via noblox.js
       try {
         console.log(`[DEBUG] Attempt ${retries + 1} to get ID for username: ${cleanUsername}`);
         userId = await noblox.getIdFromUsername(cleanUsername);
@@ -126,7 +128,7 @@ async function getUserInfo(username) {
       } catch (idError) {
         console.error(`[ERROR] Attempt ${retries + 1} failed to get ID for username ${cleanUsername}:`, idError);
         
-        // Try direct fetch from Roblox API as backup
+        // METHOD 2: Direct API call to Roblox API
         try {
           console.log(`[DEBUG] Trying direct API fetch for username: ${cleanUsername}`);
           // Make direct API call to Roblox API (bypassing noblox.js if it's having issues)
@@ -144,24 +146,25 @@ async function getUserInfo(username) {
           console.error(`[ERROR] Direct API request failed:`, directApiError);
         }
         
-        // Try to search users to handle case sensitivity and spaces
+        // METHOD 3: User search to handle case sensitivity and spaces
         try {
           console.log(`[DEBUG] Trying user search for username: ${cleanUsername}`);
           const searchResults = await noblox.searchUsers(cleanUsername);
           if (searchResults && searchResults.length > 0) {
-            // Find exact match in search results
+            console.log(`[DEBUG] Found ${searchResults.length} users in search results`);
+            
+            // Find exact match in search results (case insensitive)
             const exactMatch = searchResults.find(
               user => user.username.toLowerCase() === cleanUsername.toLowerCase()
             );
             
             if (exactMatch) {
               userId = exactMatch.id;
-              console.log(`[INFO] Found user through search: ${exactMatch.username} (${userId})`);
+              console.log(`[INFO] Found exact user through search: ${exactMatch.username} (${userId})`);
               break;
             } else {
-              console.log(`[DEBUG] Found ${searchResults.length} users but no exact match for ${cleanUsername}`);
-              // If no exact match but we have results, use the first one as a close match
-              if (retries === maxRetries - 1) {
+              // Use the first result if there's no exact match but on last retry
+              if (retries === maxRetries - 1 || searchResults.length === 1) {
                 userId = searchResults[0].id;
                 console.log(`[INFO] Using closest match from search: ${searchResults[0].username} (${userId})`);
                 break;
@@ -174,18 +177,38 @@ async function getUserInfo(username) {
           console.error(`[ERROR] Search failed for username ${cleanUsername}:`, searchError);
         }
         
+        // METHOD 4: Try searching with modified username formats
+        try {
+          // Try with capital first letter, common naming convention
+          const capitalizedUsername = cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1);
+          if (capitalizedUsername !== cleanUsername) {
+            console.log(`[DEBUG] Trying capitalized username: ${capitalizedUsername}`);
+            const capitalizedResults = await noblox.searchUsers(capitalizedUsername);
+            
+            if (capitalizedResults && capitalizedResults.length > 0) {
+              // Use first result if it's a good match
+              userId = capitalizedResults[0].id;
+              console.log(`[INFO] Found user with capitalized name: ${capitalizedResults[0].username} (${userId})`);
+              break;
+            }
+          }
+        } catch (capitalizeError) {
+          console.error(`[ERROR] Capitalized search failed:`, capitalizeError);
+        }
+        
         retries++;
         
         if (retries < maxRetries) {
-          // Wait before retrying
-          console.log(`[INFO] Waiting before retry ${retries + 1}...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait before retrying with increased delay
+          const delay = 1000 * (retries + 1);
+          console.log(`[INFO] Waiting ${delay}ms before retry ${retries + 1}...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }
     
     if (!userId) {
-      console.log(`[INFO] No Roblox user found with username: ${cleanUsername} after ${maxRetries} attempts`);
+      console.log(`[INFO] No Roblox user found with username: ${cleanUsername} after ${maxRetries} attempts and multiple methods`);
       return null;
     }
     
@@ -494,11 +517,124 @@ async function getUserRank(userId) {
   }
 }
 
+/**
+ * Advanced username search with fallback methods
+ * This function will attempt to find a Roblox user using multiple different search methods
+ * @param {string} username - Roblox username to search for
+ * @returns {Promise<Object|null>} User object or null if not found
+ */
+async function findRobloxUser(username) {
+  console.log(`[INFO] Advanced search for Roblox user: ${username}`);
+  try {
+    // Clean the username
+    const cleanUsername = username.trim();
+    
+    // Try multiple search methods in sequence
+    
+    // 1. Direct username lookup (most accurate but case sensitive)
+    try {
+      console.log(`[DEBUG] Trying direct username lookup: ${cleanUsername}`);
+      const userId = await noblox.getIdFromUsername(cleanUsername);
+      if (userId) {
+        console.log(`[INFO] Found user via direct lookup: ${cleanUsername} (${userId})`);
+        return { id: userId, username: cleanUsername, method: 'direct' };
+      }
+    } catch (err) {
+      console.log(`[DEBUG] Direct lookup failed: ${err.message}`);
+    }
+    
+    // 2. Use the users/get-by-username API
+    try {
+      console.log(`[DEBUG] Trying Roblox API lookup: ${cleanUsername}`);
+      const response = await fetch(`https://api.roblox.com/users/get-by-username?username=${encodeURIComponent(cleanUsername)}`);
+      const data = await response.json();
+      
+      if (data && data.Id) {
+        console.log(`[INFO] Found user via API: ${data.Username} (${data.Id})`);
+        return { id: data.Id, username: data.Username, method: 'api' };
+      }
+    } catch (err) {
+      console.log(`[DEBUG] API lookup failed: ${err.message}`);
+    }
+    
+    // 3. Search for users and find close matches
+    try {
+      console.log(`[DEBUG] Trying user search: ${cleanUsername}`);
+      const searchResults = await noblox.searchUsers(cleanUsername);
+      
+      if (searchResults && searchResults.length > 0) {
+        // Look for exact match (case insensitive)
+        const exactMatch = searchResults.find(
+          user => user.username.toLowerCase() === cleanUsername.toLowerCase()
+        );
+        
+        if (exactMatch) {
+          console.log(`[INFO] Found exact match via search: ${exactMatch.username} (${exactMatch.id})`);
+          return { id: exactMatch.id, username: exactMatch.username, method: 'search-exact' };
+        }
+        
+        // Use first result as closest match
+        console.log(`[INFO] Using closest match from search: ${searchResults[0].username} (${searchResults[0].id})`);
+        return { id: searchResults[0].id, username: searchResults[0].username, method: 'search-closest' };
+      }
+    } catch (err) {
+      console.log(`[DEBUG] Search failed: ${err.message}`);
+    }
+    
+    // 4. Try common username variations
+    const variations = [
+      cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1), // First letter capitalized
+      cleanUsername.toLowerCase(), // All lowercase
+      cleanUsername.toUpperCase(), // All uppercase
+      cleanUsername.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') // Title Case
+    ];
+    
+    for (const variation of variations) {
+      if (variation === cleanUsername) continue; // Skip if same as original
+      
+      try {
+        console.log(`[DEBUG] Trying username variation: ${variation}`);
+        const varResults = await noblox.searchUsers(variation);
+        
+        if (varResults && varResults.length > 0) {
+          // Use the first result from variation search
+          console.log(`[INFO] Found user via variation: ${varResults[0].username} (${varResults[0].id})`);
+          return { id: varResults[0].id, username: varResults[0].username, method: 'variation' };
+        }
+      } catch (err) {
+        console.log(`[DEBUG] Variation search failed: ${err.message}`);
+      }
+    }
+    
+    // 5. Try the V1 users API as last resort
+    try {
+      console.log(`[DEBUG] Trying V1 users API for ${cleanUsername}`);
+      const response = await fetch(`https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(cleanUsername)}&limit=10`);
+      const data = await response.json();
+      
+      if (data && data.data && data.data.length > 0) {
+        const user = data.data[0]; // Use the first result
+        console.log(`[INFO] Found user via V1 API: ${user.name} (${user.id})`);
+        return { id: user.id, username: user.name, method: 'v1-api' };
+      }
+    } catch (err) {
+      console.log(`[DEBUG] V1 API search failed: ${err.message}`);
+    }
+    
+    console.log(`[INFO] Could not find any Roblox user matching: ${cleanUsername}`);
+    return null;
+  } catch (error) {
+    console.error(`[ERROR] Advanced search failed for ${username}:`, error);
+    return null;
+  }
+}
+
 module.exports = {
   initializeRoblox,
   getUserInfo,
   checkBlacklistedGroups,
   rankUser,
   getUserRank,
-  getPlayerAvatar
+  getPlayerAvatar,
+  findRobloxUser
 };
