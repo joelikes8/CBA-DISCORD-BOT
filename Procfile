@@ -1,1 +1,1 @@
-worker: node render-worker.js
+worker: ./startup.sh

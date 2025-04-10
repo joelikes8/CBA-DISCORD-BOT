@@ -4,10 +4,12 @@ services:
     name: cba-discord-bot
     env: node
     runtime: node
-    buildCommand: npm install && echo "WORKER_SERVICE=true" > .env.render
-    startCommand: node render-worker.js
+    buildCommand: npm install && chmod +x startup.sh
+    startCommand: ./startup.sh
     plan: free
     autoDeploy: true
+    # DO NOT ADD ANY PORT CONFIGURATION HERE
+    # NO HEALTH CHECK PATHS OR PORT SETTINGS
     envVars:
       - key: DISCORD_TOKEN
         sync: false
@@ -27,6 +29,12 @@ services:
       - key: RENDER_SERVICE_TYPE
         value: worker
         # This tells Render this is a worker service, not a web service
+      - key: NODE_OPTIONS
+        value: --no-experimental-fetch --no-experimental-global-fetch
+        # This fixes the ReadableStream error
+      - key: NO_PORT_SCAN
+        value: "true"
+        # This explicitly tells Render not to scan for ports
 
   # Python version (commented out for future use)
   # Uncomment this section and comment out the Node.js section above
