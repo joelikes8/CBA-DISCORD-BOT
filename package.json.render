@@ -1,0 +1,23 @@
+{
+  "name": "cba-discord-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "deploy-commands": "node deploy-commands.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["discord", "bot", "roblox", "verification"],
+  "author": "CBA",
+  "license": "ISC",
+  "description": "A Discord bot for a Roblox British army group with verification, rank management, tryout organization and blacklist checking features",
+  "engines": {
+    "node": ">=16.11.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "noblox.js": "^6.1.1",
+    "pg": "^8.14.1"
+  }
+}

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: cba-discord-bot
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    plan: free
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: APPLICATION_ID
+        sync: false
+      - key: ROBLOX_COOKIE
+        sync: false
+      - key: ROBLOX_GROUP_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false
