@@ -1,0 +1,13 @@
+# Exclude development and non-essential files from build
+python_version/
+.git/
+.github/
+node_modules/
+*.log
+.env
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

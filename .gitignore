@@ -4,6 +4,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.render
 
 # Dependencies
 /node_modules
@@ -29,3 +30,11 @@ yarn-error.log*
 # System Files
 .DS_Store
 Thumbs.db
+
+# Render specific files
+.render-*
+.node-redefines
+bot-proxy.js
+tmp/
+.render-no-web-service
+.render-no-port-scan
