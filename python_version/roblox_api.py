@@ -2,7 +2,7 @@ import os
 import logging
 import aiohttp
 import asyncio
-from roblox import client
+from ro_py.client import Client
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,18 +31,22 @@ class RobloxAPI:
                 return False
             
             # Create Roblox client
-            cls._client = client.Client(cookie)
-            await cls._client.auth_from_cookie()
+            cls._client = Client()
+            cls._client.set_cookie(cookie)
             
             # Get current user to check if authentication worked
-            current_user = await cls._client.get_authenticated_user()
-            
-            if current_user:
-                logger.info(f"Logged into Roblox as {current_user.name} ({current_user.id})")
-                logger.info("Successfully authenticated with Roblox")
-                return True
-            else:
-                logger.error("Failed to authenticate with Roblox")
+            try:
+                current_user = await cls._client.get_authenticated_user()
+                
+                if current_user:
+                    logger.info(f"Logged into Roblox as {current_user.name} (ID: {current_user.id})")
+                    logger.info("Successfully authenticated with Roblox")
+                    return True
+                else:
+                    logger.error("Failed to authenticate with Roblox")
+                    return False
+            except Exception as auth_error:
+                logger.error(f"Authentication error: {auth_error}")
                 return False
                 
         except Exception as e:
@@ -57,11 +61,15 @@ class RobloxAPI:
             if not user:
                 return None
                 
+            # Get user details
+            display_name = await user.get_display_name()
+            created = await user.get_created_at()
+                
             return {
                 'id': user.id,
                 'username': user.name,
-                'displayName': user.display_name,
-                'created': user.created.strftime('%Y-%m-%d')
+                'displayName': display_name,
+                'created': created.strftime('%Y-%m-%d') if created else 'Unknown'
             }
         except Exception as e:
             logger.error(f"Error getting user info: {e}")
@@ -71,9 +79,9 @@ class RobloxAPI:
     async def get_player_avatar(cls, user_id):
         """Get player's avatar URL"""
         try:
-            user = await cls._client.get_user(user_id)
-            avatar_url = await user.get_thumbnail()
-            return avatar_url
+            user = await cls._client.get_user(int(user_id))
+            avatar = await user.get_avatar_image()
+            return avatar.image_url
         except Exception as e:
             logger.error(f"Error getting player avatar: {e}")
             return None
@@ -82,16 +90,19 @@ class RobloxAPI:
     async def check_blacklisted_groups(cls, user_id, blacklisted_groups):
         """Check if user is in any blacklisted groups"""
         try:
-            user = await cls._client.get_user(user_id)
-            user_groups = await user.get_group_roles()
+            user = await cls._client.get_user(int(user_id))
+            # Get user's groups
+            user_groups = await user.get_group_memberships()
             
             found_groups = []
-            for group in user_groups:
-                if str(group.group.id) in blacklisted_groups:
+            for group_id, membership in user_groups.items():
+                if str(group_id) in blacklisted_groups:
+                    group = membership.group
+                    role = membership.role
                     found_groups.append({
-                        'id': group.group.id,
-                        'name': group.group.name,
-                        'role': group.name
+                        'id': group.id,
+                        'name': group.name,
+                        'role': role.name
                     })
             
             return {
@@ -111,24 +122,41 @@ class RobloxAPI:
         """Rank user in Roblox group"""
         try:
             group = await cls._client.get_group(int(cls._group_id))
-            member = await group.get_member_by_id(user_id)
             
-            if not member:
+            # Get member's current role
+            try:
+                member = await group.get_member(int(user_id))
+                old_role = member.role
+            except Exception:
                 return {
                     'success': False,
                     'error': 'User is not in the group'
                 }
             
-            # Set rank by ID
-            await group.set_rank_by_id(user_id, int(rank_id))
+            # Get the role object by ID
+            roles = await group.get_roles()
+            target_role = None
+            for role in roles:
+                if role.rank == int(rank_id):
+                    target_role = role
+                    break
+                    
+            if not target_role:
+                return {
+                    'success': False,
+                    'error': f'Role with rank ID {rank_id} not found'
+                }
             
-            # Get updated info
-            updated_member = await group.get_member_by_id(user_id)
+            # Set the new rank
+            await group.set_member_role(int(user_id), target_role)
+            
+            # Get updated role
+            updated_member = await group.get_member(int(user_id))
             
             return {
                 'success': True,
                 'username': updated_member.user.name,
-                'oldRole': member.role.name,
+                'oldRole': old_role.name,
                 'newRole': updated_member.role.name
             }
         except Exception as e:
@@ -143,9 +171,10 @@ class RobloxAPI:
         """Get user's current rank in the group"""
         try:
             group = await cls._client.get_group(int(cls._group_id))
-            member = await group.get_member_by_id(user_id)
             
-            if not member:
+            try:
+                member = await group.get_member(int(user_id))
+            except Exception:
                 return {
                     'success': False,
                     'error': 'User is not in the group'
