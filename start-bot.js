@@ -5,6 +5,9 @@
  * 1. Deploys slash commands
  * 2. Starts the bot with crash recovery
  * 3. Implements heartbeat mechanism to keep the bot active
+ * 
+ * NOTE: This is a background worker process and does not expose any HTTP ports.
+ * Render should run this as a worker service, not a web service.
  */
 
 const { spawn } = require('child_process');
@@ -109,6 +112,10 @@ async function main() {
     process.exit(1);
   }
 }
+
+// Tell Render this is a worker with no HTTP server
+console.log('[INFO] This is a background worker service with no HTTP server or open ports');
+console.log('[INFO] Render should not expect any port to be bound');
 
 // Execute main function
 main();
