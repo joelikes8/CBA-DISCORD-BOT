@@ -1,49 +1,40 @@
+# Render.yaml configuration file
+
 services:
-  # Web service (free tier compatible)
-  # Use this for Render's free tier
+  # Main Discord Bot Service - Uses Web Service for Free Tier
   - type: web
-    name: discord-bot-web
+    name: discord-bot
     env: node
+    # Build command for Render
     buildCommand: npm install && chmod +x web-startup.sh
+    # Start command - using our web-service wrapper
     startCommand: ./web-startup.sh
-    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 20.x
+      - key: PORT
+        value: 5000
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: APPLICATION_ID
+        sync: false
+      - key: ROBLOX_COOKIE
+        sync: false
+      - key: ROBLOX_GROUP_ID
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: discord-bot-db
+          property: connectionString
+    # Health check endpoint
     healthCheckPath: /health
-    envVars:
-      - key: NODE_NO_WARNINGS
-        value: 1
-      - key: DISCORD_TOKEN
-        sync: false
-      - key: APPLICATION_ID
-        sync: false
-      - key: ROBLOX_COOKIE
-        sync: false
-      - key: ROBLOX_GROUP_ID
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-        
-  # Background worker service (requires paid plan)
-  # Only use this if you have a paid Render plan
-  - type: worker
-    name: discord-bot-worker
-    env: node
-    buildCommand: npm install && chmod +x startup.sh
-    startCommand: ./startup.sh
+    # Free tier settings
     plan: free
-    envVars:
-      - key: RENDER_SERVICE_TYPE
-        value: worker
-      - key: NODE_NO_WARNINGS
-        value: 1
-      - key: NO_PORT_SCAN
-        value: true
-      - key: DISCORD_TOKEN
-        sync: false
-      - key: APPLICATION_ID
-        sync: false
-      - key: ROBLOX_COOKIE
-        sync: false
-      - key: ROBLOX_GROUP_ID
-        sync: false
-      - key: DATABASE_URL
-        sync: false
+    # Auto-deploy settings
+    autoDeploy: false
+
+databases:
+  - name: discord-bot-db
+    plan: free
+    databaseName: discordbot
+    ipAllowList: []

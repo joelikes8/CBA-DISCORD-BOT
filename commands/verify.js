@@ -103,8 +103,8 @@ module.exports = {
       });
     }
     
-    // Make sure we have a username
-    if (!pendingVerification.robloxUsername) {
+    // Make sure we have a username - fields are stored in snake_case in the database
+    if (!pendingVerification.roblox_username) {
       console.error(`[ERROR] Missing Roblox username in pending verification for user ${userId}`);
       return interaction.followUp({ 
         content: '❌ Verification data is incomplete. Please start over with /verify.', 
@@ -112,18 +112,18 @@ module.exports = {
       });
     }
     
-    console.log(`[INFO] Verifying Roblox username: ${pendingVerification.robloxUsername} (ID: ${pendingVerification.robloxUserId})`);
+    console.log(`[INFO] Verifying Roblox username: ${pendingVerification.roblox_username} (ID: ${pendingVerification.roblox_user_id})`);
     
     // Get the user's current Roblox profile directly with userId if possible
     let userInfo;
-    if (pendingVerification.robloxUserId) {
+    if (pendingVerification.roblox_user_id) {
       try {
         // Try to get user info by ID first
-        const playerInfo = await noblox.getPlayerInfo(pendingVerification.robloxUserId);
+        const playerInfo = await noblox.getPlayerInfo(pendingVerification.roblox_user_id);
         if (playerInfo) {
-          const avatarUrl = await getPlayerAvatar(pendingVerification.robloxUserId);
+          const avatarUrl = await getPlayerAvatar(pendingVerification.roblox_user_id);
           userInfo = {
-            userId: pendingVerification.robloxUserId,
+            userId: pendingVerification.roblox_user_id,
             username: playerInfo.username,
             displayName: playerInfo.displayName, 
             blurb: playerInfo.blurb,
@@ -134,18 +134,18 @@ module.exports = {
           console.log(`[INFO] Successfully retrieved user info by ID for ${userInfo.username}`);
         }
       } catch (idError) {
-        console.error(`[ERROR] Failed to get user info by ID ${pendingVerification.robloxUserId}:`, idError);
+        console.error(`[ERROR] Failed to get user info by ID ${pendingVerification.roblox_user_id}:`, idError);
         // Will fall back to username lookup
       }
     }
     
     // If ID lookup failed, try username lookup
     if (!userInfo) {
-      userInfo = await getUserInfo(pendingVerification.robloxUsername);
+      userInfo = await getUserInfo(pendingVerification.roblox_username);
     }
     
     if (!userInfo) {
-      console.error(`[ERROR] Failed to find Roblox profile for ${pendingVerification.robloxUsername}`);
+      console.error(`[ERROR] Failed to find Roblox profile for ${pendingVerification.roblox_username}`);
       return interaction.followUp({ 
         content: '❌ Unable to find your Roblox profile. Please try again.', 
         ephemeral: true 

@@ -23,6 +23,14 @@ args = "checkDependencies"
 task = "workflow.run"
 args = "DeployCommands"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "testRobloxCookie"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "testVerificationDB"
+
 [[workflows.workflow]]
 name = "DiscordBotServer"
 author = "agent"
@@ -64,6 +72,34 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node deploy-commands.js"
+
+[[workflows.workflow]]
+name = "testRobloxCookie"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node test-roblox-cookie.js"
+
+[[workflows.workflow]]
+name = "testVerificationDB"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node test-pending-verification.js"
 
 [deployment]
 run = ["sh", "-c", "node index.js"]
