@@ -1,9 +1,9 @@
 services:
-  - type: web
+  - type: worker
     name: cba-discord-bot
     env: node
     buildCommand: npm install
-    startCommand: node index.js
+    startCommand: node deploy-commands.js && node index.js
     plan: free
     envVars:
       - key: DISCORD_TOKEN
