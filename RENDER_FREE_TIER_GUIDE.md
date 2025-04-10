@@ -38,9 +38,27 @@ Render's free tier doesn't include background worker services (which cost money)
 
 The web service wrapper:
 1. Creates a simple HTTP server on the port Render expects
-2. Runs the Discord bot as a background process
-3. Provides health check endpoints for Render
-4. Keeps the service alive without errors
+2. Runs the Discord bot as a background process with special fixes
+3. Directly patches problematic modules to fix ReadableStream errors
+4. Provides health check endpoints for Render
+5. Automatically restarts the bot if it crashes
+
+## Advanced ReadableStream Error Fix
+
+The deployment includes our most aggressive solution yet for the ReadableStream error:
+
+1. The `direct-undici-fix.js` script:
+   - Directly edits the problematic undici module files at runtime
+   - Adds all required polyfills for web API compatibility
+   - Is loaded using Node's `--require` flag to ensure it runs before anything else
+
+2. Multiple layers of protection:
+   - Direct file patching of the problematic code
+   - Global polyfills for all required classes
+   - Special environment variables to disable problematic features
+   - Runtime interception of module loading
+
+This multi-layered approach ensures the Discord bot will work even in Render's limited environment.
 
 ## Verifying Deployment
 
@@ -51,10 +69,11 @@ After deployment:
 
 ## Troubleshooting
 
-If the bot fails to start:
+If the bot still fails to start:
 1. Check Render logs for any errors
 2. Verify all environment variables are set correctly
 3. Ensure your Discord bot token and Roblox cookie are valid
+4. Try redeploying - the direct fix script may need a fresh start
 
 ## Maintaining the Service
 
