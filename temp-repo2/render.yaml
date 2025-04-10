@@ -1,0 +1,25 @@
+services:
+  # Background worker service (no web server)
+  - type: worker
+    name: discord-bot-worker
+    env: node
+    buildCommand: npm install && chmod +x startup.sh
+    startCommand: ./startup.sh
+    plan: free
+    envVars:
+      - key: RENDER_SERVICE_TYPE
+        value: worker
+      - key: NODE_NO_WARNINGS
+        value: 1
+      - key: NO_PORT_SCAN
+        value: true
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: APPLICATION_ID
+        sync: false
+      - key: ROBLOX_COOKIE
+        sync: false
+      - key: ROBLOX_GROUP_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false

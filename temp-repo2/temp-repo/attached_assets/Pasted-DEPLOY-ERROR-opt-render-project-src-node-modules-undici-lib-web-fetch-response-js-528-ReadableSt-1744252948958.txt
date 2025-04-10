@@ -1,0 +1,76 @@
+DEPLOY ERROR] /opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528
+  ReadableStream
+  ^
+ReferenceError: ReadableStream is not defined
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528:3)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+    at Module.load (node:internal/modules/cjs/loader:1074:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:909:12)
+    at Module.require (node:internal/modules/cjs/loader:1098:19)
+    at require (node:internal/modules/cjs/helpers:108:18)
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/index.js:11:5)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+[DEPLOY] Failed to deploy slash commands (exit code 1)
+Starting Discord bot...
+[BOT ERROR] [FATAL ERROR] Uncaught Exception: ReferenceError: ReadableStream is not defined
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528:3)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+    at Module.load (node:internal/modules/cjs/loader:1074:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:909:12)
+    at Module.require (node:internal/modules/cjs/loader:1098:19)
+    at require (node:internal/modules/cjs/helpers:108:18)
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/index.js:11:5)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+[BOT] Bot process exited with code 1
+[BOT CRASH] Bot crashed with exit code 1
+[RECOVERY] Waiting 30 seconds before restarting...
+[DIAGNOSTIC] Running diagnostic checks...
+/opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528
+  ReadableStream
+  ^
+ReferenceError: ReadableStream is not defined
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528:3)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+    at Module.load (node:internal/modules/cjs/loader:1074:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:909:12)
+    at Module.require (node:internal/modules/cjs/loader:1098:19)
+    at require (node:internal/modules/cjs/helpers:108:18)
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/index.js:11:5)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+[RESTART] Restarting bot...
+Starting Discord bot...
+[BOT ERROR] [FATAL ERROR] Uncaught Exception: ReferenceError: ReadableStream is not defined
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528:3)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+    at Module.load (node:internal/modules/cjs/loader:1074:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:909:12)
+    at Module.require (node:internal/modules/cjs/loader:1098:19)
+    at require (node:internal/modules/cjs/helpers:108:18)
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/index.js:11:5)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+[BOT] Bot process exited with code 1
+[BOT CRASH] Bot crashed with exit code 1
+[RECOVERY] Waiting 30 seconds before restarting...
+[DIAGNOSTIC] Running diagnostic checks...
+/opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528
+  ReadableStream
+  ^
+ReferenceError: ReadableStream is not defined
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/response.js:528:3)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
+    at Module.load (node:internal/modules/cjs/loader:1074:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:909:12)
+    at Module.require (node:internal/modules/cjs/loader:1098:19)
+    at require (node:internal/modules/cjs/helpers:108:18)
+    at Object.<anonymous> (/opt/render/project/src/node_modules/undici/lib/web/fetch/index.js:11:5)
+    at Module._compile (node:internal/modules/cjs/loader:1196:14)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1250:10)
