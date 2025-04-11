@@ -104,8 +104,13 @@ module.exports = {
       });
     }
     
-    // Make sure we have a username - fields are stored in snake_case in the database
-    if (!pendingVerification.roblox_username) {
+    // Check if we have a username (check both camelCase and snake_case formats)
+    // Database fields could be in either format depending on how they were stored
+    const robloxUsername = pendingVerification.robloxUsername || pendingVerification.roblox_username;
+    const robloxUserId = pendingVerification.robloxUserId || pendingVerification.roblox_user_id;
+    const verificationCode = pendingVerification.code;
+    
+    if (!robloxUsername) {
       console.error(`[ERROR] Missing Roblox username in pending verification for user ${userId}`);
       return interaction.followUp({ 
         content: '❌ Verification data is incomplete. Please start over with /verify.', 
@@ -113,18 +118,18 @@ module.exports = {
       });
     }
     
-    console.log(`[INFO] Verifying Roblox username: ${pendingVerification.roblox_username} (ID: ${pendingVerification.roblox_user_id})`);
+    console.log(`[INFO] Verifying Roblox username: ${robloxUsername} (ID: ${robloxUserId})`);
     
     // Get the user's current Roblox profile directly with userId if possible
     let userInfo;
-    if (pendingVerification.roblox_user_id) {
+    if (robloxUserId) {
       try {
         // Try to get user info by ID first
-        const playerInfo = await noblox.getPlayerInfo(pendingVerification.roblox_user_id);
+        const playerInfo = await noblox.getPlayerInfo(robloxUserId);
         if (playerInfo) {
-          const avatarUrl = await getPlayerAvatar(pendingVerification.roblox_user_id);
+          const avatarUrl = await getPlayerAvatar(robloxUserId);
           userInfo = {
-            userId: pendingVerification.roblox_user_id,
+            userId: robloxUserId,
             username: playerInfo.username,
             displayName: playerInfo.displayName, 
             blurb: playerInfo.blurb,
@@ -135,18 +140,18 @@ module.exports = {
           console.log(`[INFO] Successfully retrieved user info by ID for ${userInfo.username}`);
         }
       } catch (idError) {
-        console.error(`[ERROR] Failed to get user info by ID ${pendingVerification.roblox_user_id}:`, idError);
+        console.error(`[ERROR] Failed to get user info by ID ${robloxUserId}:`, idError);
         // Will fall back to username lookup
       }
     }
     
     // If ID lookup failed, try username lookup
     if (!userInfo) {
-      userInfo = await getUserInfo(pendingVerification.roblox_username);
+      userInfo = await getUserInfo(robloxUsername);
     }
     
     if (!userInfo) {
-      console.error(`[ERROR] Failed to find Roblox profile for ${pendingVerification.roblox_username}`);
+      console.error(`[ERROR] Failed to find Roblox profile for ${robloxUsername}`);
       return interaction.followUp({ 
         content: '❌ Unable to find your Roblox profile. Please try again.', 
         ephemeral: true 
@@ -161,8 +166,8 @@ module.exports = {
     });
     
     // Check if the verification code is in the profile description
-    console.log(`[DEBUG] Starting verification polling for user ${pendingVerification.roblox_username} (${pendingVerification.roblox_user_id})`);
-    console.log(`[DEBUG] Verification code to match: "${pendingVerification.code}"`);
+    console.log(`[DEBUG] Starting verification polling for user ${robloxUsername} (${robloxUserId})`);
+    console.log(`[DEBUG] Verification code to match: "${verificationCode}"`);
     
     // First send a loading message
     await interaction.followUp({ 
@@ -178,7 +183,7 @@ module.exports = {
       attempts++;
       
       // Refresh the user info each time
-      const refreshedUserInfo = await getUserInfo(pendingVerification.roblox_username);
+      const refreshedUserInfo = await getUserInfo(robloxUsername);
       
       if (!refreshedUserInfo) {
         console.log(`[ERROR] Failed to fetch refreshed user info on attempt ${attempts}`);
@@ -189,22 +194,22 @@ module.exports = {
       
       // More comprehensive matching
       // 1. Exact string match
-      const exactMatch = refreshedUserInfo.blurb && refreshedUserInfo.blurb.includes(pendingVerification.code);
+      const exactMatch = refreshedUserInfo.blurb && refreshedUserInfo.blurb.includes(verificationCode);
       
       // 2. Case insensitive match
       const blurbLower = refreshedUserInfo.blurb ? refreshedUserInfo.blurb.toLowerCase().trim() : '';
-      const codeLower = pendingVerification.code.toLowerCase().trim();
+      const codeLower = verificationCode.toLowerCase().trim();
       const caseInsensitiveMatch = blurbLower.includes(codeLower);
       
       // 3. Without spaces match
       const blurbNoSpaces = refreshedUserInfo.blurb ? refreshedUserInfo.blurb.replace(/\s+/g, '') : '';
-      const codeNoSpaces = pendingVerification.code.replace(/\s+/g, '');
+      const codeNoSpaces = verificationCode.replace(/\s+/g, '');
       const noSpacesMatch = blurbNoSpaces.includes(codeNoSpaces);
       
       // 4. Check if code might be broken up (e.g., "ABC 123" vs "ABC123")
       let brokenMatch = false;
-      if (pendingVerification.code.length > 3) {
-        const escapedCode = pendingVerification.code.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      if (verificationCode.length > 3) {
+        const escapedCode = verificationCode.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
         const flexibleRegex = new RegExp(escapedCode.split('').join('\\s*'), 'i');
         brokenMatch = flexibleRegex.test(refreshedUserInfo.blurb || '');
       }
@@ -234,7 +239,7 @@ module.exports = {
       console.log(`[DEBUG] ⚠️ USING TEMPORARY BYPASS - Proceeding without profile validation`);
       
       await interaction.followUp({ 
-        content: `⚠️ Normal verification failed, but continuing without profile validation.\nThis is a temporary testing measure.\n\nVerifying you as ${pendingVerification.roblox_username}...`, 
+        content: `⚠️ Normal verification failed, but continuing without profile validation.\nThis is a temporary testing measure.\n\nVerifying you as ${robloxUsername}...`, 
         ephemeral: true 
       });
       
