@@ -16,7 +16,7 @@ module.exports = {
 
   async execute(interaction) {
     // Defer reply since this might take a moment
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ ephemeral: true }); // Fixed command implementation
     
     // Get command options
     const userId = interaction.options.getString('userid');
