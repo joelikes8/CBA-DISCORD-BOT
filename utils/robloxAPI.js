@@ -419,13 +419,34 @@ async function checkBlacklistedGroups(userId) {
     const userGroups = await noblox.getGroups(userId);
     console.log(`[DEBUG] User ${userId} is in ${userGroups.length} groups`);
     
-    // Filter to find which groups are blacklisted
+    // Log all user groups for debugging
+    userGroups.forEach(group => {
+      console.log(`[DEBUG] User Group: ${group.Name} (ID: ${group.Id})`);
+    });
+    
+    // Normalize blacklisted group IDs to ensure consistent comparisons
+    const normalizedBlacklistedGroups = blacklistedGroups.map(id => String(id).trim());
+    console.log(`[DEBUG] Normalized blacklisted groups:`, normalizedBlacklistedGroups);
+    
+    // Filter to find which groups are blacklisted with improved comparison
     const blacklisted = userGroups.filter(group => {
-      const groupIdStr = String(group.Id);
-      const isBlacklisted = blacklistedGroups.includes(groupIdStr);
+      // Convert group ID to string and ensure no whitespace
+      const groupIdStr = String(group.Id).trim();
+      
+      // Check if this group ID exists in our blacklisted groups array
+      const matchIndex = normalizedBlacklistedGroups.findIndex(
+        blacklistedId => blacklistedId === groupIdStr
+      );
+      
+      const isBlacklisted = matchIndex >= 0;
+      
+      // Detailed logging for each group check
+      console.log(`[DEBUG] Checking group ${group.Name} (${groupIdStr}): ${isBlacklisted ? 'BLACKLISTED' : 'not blacklisted'}`);
+      
       if (isBlacklisted) {
-        console.log(`[DEBUG] Found blacklisted group: ${group.Name} (${groupIdStr})`);
+        console.log(`[DEBUG] Found blacklisted group: ${group.Name} (${groupIdStr}) matches blacklisted ID: ${normalizedBlacklistedGroups[matchIndex]}`);
       }
+      
       return isBlacklisted;
     });
     

@@ -40,8 +40,12 @@ module.exports = {
         return interaction.reply({ content: '❌ Group ID must be a number.', ephemeral: true });
       }
       
+      // Clean up the group ID (remove whitespace, make sure it's a string)
+      const cleanGroupId = String(groupId).trim();
+      console.log(`[INFO] Adding blacklisted group with ID: ${cleanGroupId}`);
+      
       // Add the group to the blacklist
-      const count = addBlacklistedGroup(groupId);
+      const count = await addBlacklistedGroup(cleanGroupId);
       
       const embed = new EmbedBuilder()
         .setTitle('Group Blacklisted')
@@ -56,8 +60,12 @@ module.exports = {
     else if (subcommand === 'remove') {
       const groupId = interaction.options.getString('group_id');
       
+      // Clean up the group ID (remove whitespace, make sure it's a string)
+      const cleanGroupId = String(groupId).trim();
+      console.log(`[INFO] Removing blacklisted group with ID: ${cleanGroupId}`);
+      
       // Remove the group from the blacklist
-      const success = removeBlacklistedGroup(groupId);
+      const success = await removeBlacklistedGroup(cleanGroupId);
       
       if (!success) {
         return interaction.reply({ content: `❌ Group ID \`${groupId}\` was not in the blacklist.`, ephemeral: true });
@@ -73,7 +81,8 @@ module.exports = {
     }
     
     else if (subcommand === 'list') {
-      const blacklistedGroups = getBlacklistedGroups();
+      const blacklistedGroups = await getBlacklistedGroups();
+      console.log(`[INFO] Retrieved ${blacklistedGroups.length} blacklisted groups:`, blacklistedGroups);
       
       if (blacklistedGroups.length === 0) {
         return interaction.reply({ content: 'There are no blacklisted groups yet.', ephemeral: true });
