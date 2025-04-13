@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getUserInfo, checkBlacklistedGroups } = require('../utils/robloxAPI');
+const { getUserInfo, checkBlacklistedGroups, findRobloxUser, getPlayerAvatar } = require('../utils/robloxAPI');
 const { getBlacklistedGroups } = require('../utils/database');
 
 module.exports = {
@@ -22,16 +22,33 @@ module.exports = {
       const blacklistedGroupsCount = await getBlacklistedGroups().then(groups => groups.length);
       console.log(`[INFO] Number of blacklisted groups in database: ${blacklistedGroupsCount}`);
       
-      // Get user info
-      const userInfo = await getUserInfo(username);
-      if (!userInfo) {
+      // Try to find the Roblox user using the more robust findRobloxUser function first
+      const robloxUser = await findRobloxUser(username);
+      if (!robloxUser) {
         return interaction.editReply('❌ Could not find a Roblox user with that username. Please check the spelling and try again.');
       }
       
-      console.log(`[INFO] Found Roblox user: ${userInfo.username} (ID: ${userInfo.userId})`);
+      console.log(`[INFO] Found Roblox user via ${robloxUser.method}: ${robloxUser.username} (ID: ${robloxUser.id})`);
+      
+      // Get detailed user info using the username we found
+      let userInfo = await getUserInfo(robloxUser.username);
+      
+      // If getUserInfo fails, create a minimal userInfo object from the robloxUser data
+      if (!userInfo) {
+        const avatarUrl = await getPlayerAvatar(robloxUser.id);
+        userInfo = {
+          userId: robloxUser.id,
+          username: robloxUser.username,
+          age: 0,
+          avatarUrl: avatarUrl
+        };
+        console.log(`[INFO] Using basic user info for: ${userInfo.username} (ID: ${userInfo.userId})`);
+      } else {
+        console.log(`[INFO] Using detailed user info for: ${userInfo.username} (ID: ${userInfo.userId})`);
+      }
       
       // Check if the user is in any blacklisted groups
-      const blacklistCheck = await checkBlacklistedGroups(userInfo.userId);
+      const blacklistCheck = await checkBlacklistedGroups(userInfo.userId || robloxUser.id);
       
       if (blacklistCheck.error) {
         console.error(`[ERROR] Blacklist check failed:`, blacklistCheck);
