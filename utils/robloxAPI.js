@@ -539,70 +539,152 @@ async function getUserRank(userId) {
 }
 
 /**
- * Advanced username search with fallback methods
+ * Advanced and robust Roblox user lookup with multiple fallbacks and rate limit handling
  * This function will attempt to find a Roblox user using multiple different search methods
- * @param {string} username - Roblox username to search for
- * @returns {Promise<Object|null>} User object or null if not found
+ * with built-in rate limit handling and exponential backoff
+ * @param {string} username - Username to search for
+ * @returns {Promise<Object|null>} User info or null if not found
  */
 async function findRobloxUser(username) {
   console.log(`[INFO] Advanced search for Roblox user: ${username}`);
+  
+  // Check if we're logged in first
+  if (!loggedIn) {
+    console.log('[INFO] Not logged in to Roblox, attempting to authenticate first...');
+    await initializeRoblox();
+  }
+  
   try {
-    // Clean the username
+    // Clean the username and handle edge cases
     const cleanUsername = username.trim();
-    
-    // Try multiple search methods in sequence
-    
-    // 1. Direct username lookup (most accurate but case sensitive)
-    try {
-      console.log(`[DEBUG] Trying direct username lookup: ${cleanUsername}`);
-      const userId = await noblox.getIdFromUsername(cleanUsername);
-      if (userId) {
-        console.log(`[INFO] Found user via direct lookup: ${cleanUsername} (${userId})`);
-        return { id: userId, username: cleanUsername, method: 'direct' };
-      }
-    } catch (err) {
-      console.log(`[DEBUG] Direct lookup failed: ${err.message}`);
+    if (!cleanUsername) {
+      console.error('[ERROR] Empty username provided');
+      return null;
     }
     
-    // 2. Use the users/get-by-username API
-    try {
-      console.log(`[DEBUG] Trying Roblox API lookup: ${cleanUsername}`);
-      const response = await fetch(`https://api.roblox.com/users/get-by-username?username=${encodeURIComponent(cleanUsername)}`);
-      const data = await response.json();
-      
-      if (data && data.Id) {
-        console.log(`[INFO] Found user via API: ${data.Username} (${data.Id})`);
-        return { id: data.Id, username: data.Username, method: 'api' };
-      }
-    } catch (err) {
-      console.log(`[DEBUG] API lookup failed: ${err.message}`);
-    }
+    console.log(`[DEBUG] Searching for Roblox user: "${cleanUsername}"`);
     
-    // 3. Search for users and find close matches
-    try {
-      console.log(`[DEBUG] Trying user search: ${cleanUsername}`);
-      const searchResults = await noblox.searchUsers(cleanUsername);
-      
-      if (searchResults && searchResults.length > 0) {
-        // Look for exact match (case insensitive)
-        const exactMatch = searchResults.find(
-          user => user.username.toLowerCase() === cleanUsername.toLowerCase()
-        );
-        
-        if (exactMatch) {
-          console.log(`[INFO] Found exact match via search: ${exactMatch.username} (${exactMatch.id})`);
-          return { id: exactMatch.id, username: exactMatch.username, method: 'search-exact' };
+    // Retry configuration with exponential backoff for rate limit handling
+    const maxMethods = 5;  // Number of different methods to try
+    const maxRetries = 3;  // Retries per method
+    const baseDelay = 1000; // Starting delay in ms
+    
+    // METHOD 1: Direct username lookup (most accurate but case sensitive)
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const delay = baseDelay * Math.pow(2, attempt);
+        if (attempt > 0) {
+          console.log(`[DEBUG] Retrying direct lookup (attempt ${attempt + 1}) after ${delay}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
         
-        // Use first result as closest match
-        console.log(`[INFO] Using closest match from search: ${searchResults[0].username} (${searchResults[0].id})`);
-        return { id: searchResults[0].id, username: searchResults[0].username, method: 'search-closest' };
+        console.log(`[DEBUG] Trying direct username lookup: ${cleanUsername}`);
+        const userId = await noblox.getIdFromUsername(cleanUsername);
+        if (userId) {
+          console.log(`[INFO] Found user via direct lookup: ${cleanUsername} (${userId})`);
+          return { id: userId, username: cleanUsername, method: 'direct' };
+        }
+      } catch (err) {
+        const isRateLimit = err.message && (
+          err.message.includes('Too many requests') || 
+          err.message.includes('429') || 
+          err.message.includes('rate limit')
+        );
+        
+        if (isRateLimit) {
+          console.log(`[WARN] Rate limited during direct lookup, attempt ${attempt + 1}/${maxRetries}`);
+          // For rate limits, wait longer
+          await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(3, attempt)));
+        } else {
+          console.log(`[DEBUG] Direct lookup failed: ${err.message}`);
+          // For non-rate-limit errors, continue to next method
+          break;
+        }
+        
+        // If this was the last retry and it failed, continue to the next method
+        if (attempt === maxRetries - 1) {
+          console.log('[DEBUG] Direct lookup exhausted all retries, moving to next method');
+        }
       }
-    } catch (err) {
-      console.log(`[DEBUG] Search failed: ${err.message}`);
     }
     
-    // 4. Try common username variations
+    // METHOD 2: Use the users/get-by-username API (more robust for special characters)
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const delay = baseDelay * Math.pow(2, attempt);
+        if (attempt > 0) {
+          console.log(`[DEBUG] Retrying API lookup (attempt ${attempt + 1}) after ${delay}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        console.log(`[DEBUG] Trying Roblox API lookup: ${cleanUsername}`);
+        const response = await fetch(`https://api.roblox.com/users/get-by-username?username=${encodeURIComponent(cleanUsername)}`);
+        
+        // Check for rate limiting
+        if (response.status === 429) {
+          console.log(`[WARN] Rate limited during API lookup, attempt ${attempt + 1}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(3, attempt)));
+          continue;
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.Id) {
+          console.log(`[INFO] Found user via API: ${data.Username} (${data.Id})`);
+          return { id: data.Id, username: data.Username, method: 'api' };
+        }
+      } catch (err) {
+        console.log(`[DEBUG] API lookup failed: ${err.message}`);
+        // For API errors, quickly move to next method
+        break;
+      }
+    }
+    
+    // METHOD 3: Search for users and find close matches (handles case sensitivity)
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const delay = baseDelay * Math.pow(2, attempt);
+        if (attempt > 0) {
+          console.log(`[DEBUG] Retrying user search (attempt ${attempt + 1}) after ${delay}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        console.log(`[DEBUG] Trying user search: ${cleanUsername}`);
+        const searchResults = await noblox.searchUsers(cleanUsername);
+        
+        if (searchResults && searchResults.length > 0) {
+          // Look for exact match (case insensitive)
+          const exactMatch = searchResults.find(
+            user => user.name && user.name.toLowerCase() === cleanUsername.toLowerCase()
+          );
+          
+          if (exactMatch) {
+            console.log(`[INFO] Found exact match via search: ${exactMatch.name} (${exactMatch.id})`);
+            return { id: exactMatch.id, username: exactMatch.name, method: 'search-exact' };
+          }
+          
+          // Use first result as closest match
+          console.log(`[INFO] Using closest match from search: ${searchResults[0].name} (${searchResults[0].id})`);
+          return { id: searchResults[0].id, username: searchResults[0].name, method: 'search-closest' };
+        }
+      } catch (err) {
+        const isRateLimit = err.message && (
+          err.message.includes('Too many requests') || 
+          err.message.includes('429') || 
+          err.message.includes('rate limit')
+        );
+        
+        if (isRateLimit) {
+          console.log(`[WARN] Rate limited during search, attempt ${attempt + 1}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(3, attempt)));
+        } else {
+          console.log(`[DEBUG] Search failed: ${err.message}`);
+          break;
+        }
+      }
+    }
+    
+    // METHOD 4: Try common username variations
     const variations = [
       cleanUsername.charAt(0).toUpperCase() + cleanUsername.slice(1), // First letter capitalized
       cleanUsername.toLowerCase(), // All lowercase
@@ -619,30 +701,41 @@ async function findRobloxUser(username) {
         
         if (varResults && varResults.length > 0) {
           // Use the first result from variation search
-          console.log(`[INFO] Found user via variation: ${varResults[0].username} (${varResults[0].id})`);
-          return { id: varResults[0].id, username: varResults[0].username, method: 'variation' };
+          console.log(`[INFO] Found user via variation: ${varResults[0].name} (${varResults[0].id})`);
+          return { id: varResults[0].id, username: varResults[0].name, method: 'variation' };
         }
       } catch (err) {
+        // For variation searches, just log and continue to the next one
         console.log(`[DEBUG] Variation search failed: ${err.message}`);
       }
+      
+      // Add small delay between variation searches
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
-    // 5. Try the V1 users API as last resort
+    // METHOD 5: Try the V1 users API as last resort (different endpoint)
     try {
       console.log(`[DEBUG] Trying V1 users API for ${cleanUsername}`);
       const response = await fetch(`https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(cleanUsername)}&limit=10`);
-      const data = await response.json();
       
-      if (data && data.data && data.data.length > 0) {
-        const user = data.data[0]; // Use the first result
-        console.log(`[INFO] Found user via V1 API: ${user.name} (${user.id})`);
-        return { id: user.id, username: user.name, method: 'v1-api' };
+      if (response.status === 429) {
+        console.log('[WARN] Rate limited on V1 API search');
+        // Wait a bit before giving up
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        const data = await response.json();
+        
+        if (data && data.data && data.data.length > 0) {
+          const user = data.data[0]; // Use the first result
+          console.log(`[INFO] Found user via V1 API: ${user.name} (${user.id})`);
+          return { id: user.id, username: user.name, method: 'v1-api' };
+        }
       }
     } catch (err) {
       console.log(`[DEBUG] V1 API search failed: ${err.message}`);
     }
     
-    console.log(`[INFO] Could not find any Roblox user matching: ${cleanUsername}`);
+    console.log(`[INFO] Could not find any Roblox user matching: ${cleanUsername} after trying ${maxMethods} different methods`);
     return null;
   } catch (error) {
     console.error(`[ERROR] Advanced search failed for ${username}:`, error);
