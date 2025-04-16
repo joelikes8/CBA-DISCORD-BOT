@@ -1,129 +1,76 @@
-# Render Deployment Guide for Discord Bot
+# Render Deployment Guide
 
-This guide will walk you through deploying your Discord bot on Render's free tier web service.
+This document provides instructions for deploying the CBA Discord Bot to Render.com.
 
-## Overview
+## Configuration Options
 
-Unlike paid background worker services, this bot is designed to work on Render's free tier by:
-1. Running a small web server that responds to HTTP requests (required for free tier)
-2. Running the Discord bot as a background process within the web service
-3. Using special fixes for ReadableStream compatibility issues
+### Option 1: Background Worker (No Web Interface)
 
-## Prerequisites
+If you don't need a web interface and aren't using UptimeRobot:
 
-Before deploying, make sure you have:
-
-- A Discord bot token (from [Discord Developer Portal](https://discord.com/developers/applications))
-- Your bot's Application ID
-- A Roblox Cookie (.ROBLOSECURITY)
-- Your Roblox Group ID
-
-## Deployment Steps
-
-### Option 1: Deploy with render.yaml (Recommended)
-
-1. Login to your Render account
-2. Navigate to the Dashboard
-3. Click on "New" and select "Blueprint"
-4. Connect your GitHub repository containing this bot
-5. Render will automatically detect the `render.yaml` file and set up the service
-6. Set your environment variables in the Render Dashboard:
+1. **Service Type**: Background Worker
+2. **Build Command**: `npm install`
+3. **Start Command**: `bash startup.sh`
+4. **Environment Variables**:
    - `DISCORD_TOKEN`: Your Discord bot token
-   - `APPLICATION_ID`: Your bot's application ID
-   - `ROBLOX_COOKIE`: Your Roblox cookie (.ROBLOSECURITY=_|WARNING:-...)
+   - `APPLICATION_ID`: Your Discord application ID
+   - `ROBLOX_COOKIE`: Your Roblox .ROBLOSECURITY cookie
    - `ROBLOX_GROUP_ID`: Your Roblox group ID
-7. Click "Apply" to create the service
+   - `DATABASE_URL`: PostgreSQL connection string
+   - `RENDER_SERVICE_TYPE`: Set to `worker`
+   - `NO_PORT_SCAN`: Set to `true`
+   - `NODE_NO_WARNINGS`: Set to `1`
 
-### Option 2: Manual Setup
+### Option 2: Web Service (With Web Interface)
 
-If you prefer to set up manually:
+If you need a web interface or are using UptimeRobot:
 
-1. Login to your Render account
-2. Create a new Web Service (not a Background Worker)
-3. Connect to your GitHub repository
-4. Configure the service:
-   - **Name**: discord-bot (or your preferred name)
-   - **Environment**: Node
-   - **Region**: Choose the region closest to you
-   - **Branch**: main (or your preferred branch)
-   - **Build Command**: `npm install && chmod +x web-startup.sh`
-   - **Start Command**: `./web-startup.sh`
-5. Add the environment variables:
+1. **Service Type**: Web Service
+2. **Build Command**: `npm install`
+3. **Start Command**: `bash web-startup.sh`
+4. **Environment Variables**:
    - `DISCORD_TOKEN`: Your Discord bot token
-   - `APPLICATION_ID`: Your bot's application ID
-   - `ROBLOX_COOKIE`: Your Roblox cookie
+   - `APPLICATION_ID`: Your Discord application ID
+   - `ROBLOX_COOKIE`: Your Roblox .ROBLOSECURITY cookie
    - `ROBLOX_GROUP_ID`: Your Roblox group ID
-   - `NODE_VERSION`: 20.x
-6. Create a PostgreSQL database:
-   - In the Render dashboard, go to "New" and select "PostgreSQL"
-   - Choose a name for your database
-   - Select the free plan
-   - After creation, go to your database settings and copy the Internal Database URL
-7. Add the database connection:
-   - Go back to your web service
-   - Add a new environment variable `DATABASE_URL` with the Internal Database URL
+   - `DATABASE_URL`: PostgreSQL connection string
+   - `NODE_NO_WARNINGS`: Set to `1`
+   - `UNDICI_NO_READABLE_STREAM`: Set to `1`
+   - `NO_UNDICI_FETCH`: Set to `1`
 
-## Monitoring and Troubleshooting
+## UptimeRobot Configuration
 
-Once deployed, you can monitor your bot:
+If using UptimeRobot to keep your bot alive:
 
-1. The web interface will be available at your Render URL (e.g., https://your-service.onrender.com)
-2. Check the status page at https://your-service.onrender.com/status
-3. View logs in the Render dashboard
-4. If you're experiencing issues:
-   - Check the "Logs" tab in Render dashboard
-   - Ensure all environment variables are set correctly
-   - Verify your Discord token and Roblox cookie are valid
+1. Use Option 2 (Web Service) above
+2. Set up a monitor in UptimeRobot for `https://your-app-name.onrender.com/health`
+3. Set the monitoring interval to 5-10 minutes
 
-## ReadableStream Compatibility
+## Web Endpoints
 
-This bot uses a special fix for ReadableStream compatibility issues on Render:
+When using the web service option, the following endpoints are available:
 
-1. `extreme-fix.js` provides global replacements for problematic APIs
-2. `web-startup.sh` ensures these fixes are applied before starting the bot
-3. If you're still seeing ReadableStream errors, check the logs and ensure you're using the correct startup script
+- `/`: Basic status page showing bot configuration
+- `/health`: Health check endpoint (returns 200 OK if the bot is running)
+- `/status`: JSON status information about the bot
 
-## Health Checks
+## Troubleshooting
 
-Render uses health checks to determine if your service is running correctly:
+### Bad Gateway Errors
 
-- The bot provides a `/health` endpoint
-- Render will automatically ping this endpoint
-- If the endpoint stops responding, Render may restart your service
+If you see "Bad Gateway" when accessing your Render URL:
 
-## Common Issues and Solutions
+1. Check that you're using the correct start command (`web-startup.sh` for web services)
+2. Verify that the PORT environment variable is being used correctly
+3. Check Render logs for any startup errors
 
-### Discord Connection Problems
+### ReadableStream Errors
 
-- **Error**: `[ERROR] Failed to log in: TokenInvalid`
-  - **Solution**: Your Discord token is invalid. Generate a new token in the Discord Developer Portal.
+If you see errors like "ReadableStream is not defined":
 
-- **Error**: `[ERROR] Failed to deploy commands`
-  - **Solution**: Ensure your APPLICATION_ID is correct and your bot has the applications.commands scope.
-
-### Roblox API Issues
-
-- **Error**: `[ERROR] Failed to authenticate with Roblox`
-  - **Solution**: Your Roblox cookie may be expired. Get a fresh cookie from the Roblox website.
-
-- **Warning**: `No Roblox warning detected in provided cookie`
-  - **Solution**: Make sure to include the full `.ROBLOSECURITY=_|WARNING:-DO-NOT-SHARE-THIS...` cookie.
-
-### Database Issues
-
-- **Error**: `[ERROR] Failed to connect to the database`
-  - **Solution**: Check that your DATABASE_URL is correct and the database is created.
-
-- **Error**: `Verification data is incomplete`
-  - **Solution**: Make sure your database tables are initialized. Run a test with `node test-pending-verification.js`.
-
-## Keeping Your Bot Alive
-
-The free tier on Render:
-- May spin down after 15 minutes of inactivity
-- Has a limited number of runtime hours per month
-
-To keep your bot active:
-1. The `/health` endpoint helps keep the service running
-2. The web server is designed to respond quickly to prevent Render from marking it as inactive
-3. Consider using an external service like UptimeRobot to ping your health endpoint regularly
+1. Make sure you're using the correct startup script (`startup.sh` or `web-startup.sh`)
+2. Set the `NODE_NO_WARNINGS=1`, `UNDICI_NO_READABLE_STREAM=1`, and `NO_UNDICI_FETCH=1` environment variables
+3. If errors persist, try using the extreme compatibility fix with:
+   ```
+   NODE_OPTIONS="--require ./extreme-fix.js" node index.js
+   ```
