@@ -1,5 +1,10 @@
 const { Pool } = require('pg');
 
+// In-memory store for when database is unavailable
+const memoryStore = {
+  blacklistedGroups: new Set() // Using a Set for faster lookups
+};
+
 // Create a new pool instance using environment variables
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -177,39 +182,81 @@ async function isGroupBlacklisted(groupId) {
 }
 
 async function addBlacklistedGroup(groupId) {
+  const cleanedGroupId = String(groupId).trim();
   try {
+    // Try to add to database
     await pool.query(
       'INSERT INTO blacklisted_groups (group_id) VALUES ($1) ON CONFLICT (group_id) DO NOTHING',
-      [String(groupId)]
+      [cleanedGroupId]
     );
     const result = await pool.query('SELECT COUNT(*) FROM blacklisted_groups');
+    
+    // Also add to memory store as backup
+    memoryStore.blacklistedGroups.add(cleanedGroupId);
+    console.log(`[INFO] Added group ${cleanedGroupId} to blacklist (DB and memory store)`);
+    
     return parseInt(result.rows[0].count);
   } catch (error) {
-    console.error('[ERROR] Failed to add blacklisted group:', error);
-    return 0;
+    console.error('[ERROR] Failed to add blacklisted group to database:', error);
+    
+    // Fallback to memory store
+    memoryStore.blacklistedGroups.add(cleanedGroupId);
+    console.log(`[INFO] Added group ${cleanedGroupId} to memory store blacklist`);
+    
+    return memoryStore.blacklistedGroups.size;
   }
 }
 
 async function removeBlacklistedGroup(groupId) {
+  const cleanedGroupId = String(groupId).trim();
   try {
+    // Try to remove from database
     const result = await pool.query(
       'DELETE FROM blacklisted_groups WHERE group_id = $1 RETURNING group_id',
-      [String(groupId)]
+      [cleanedGroupId]
     );
-    return result.rows.length > 0;
+    
+    // Also remove from memory store
+    const wasInMemoryStore = memoryStore.blacklistedGroups.has(cleanedGroupId);
+    memoryStore.blacklistedGroups.delete(cleanedGroupId);
+    
+    console.log(`[INFO] Removed group ${cleanedGroupId} from blacklist (DB and memory store)`);
+    
+    return result.rows.length > 0 || wasInMemoryStore;
   } catch (error) {
-    console.error('[ERROR] Failed to remove blacklisted group:', error);
-    return false;
+    console.error('[ERROR] Failed to remove blacklisted group from database:', error);
+    
+    // Fall back to memory store
+    const wasInMemoryStore = memoryStore.blacklistedGroups.has(cleanedGroupId);
+    memoryStore.blacklistedGroups.delete(cleanedGroupId);
+    
+    console.log(`[INFO] Removed group ${cleanedGroupId} from memory store blacklist: ${wasInMemoryStore}`);
+    
+    return wasInMemoryStore;
   }
 }
 
 async function getBlacklistedGroups() {
   try {
+    // Try to get from database
     const result = await pool.query('SELECT group_id FROM blacklisted_groups');
-    return result.rows.map(row => row.group_id);
+    const dbGroups = result.rows.map(row => row.group_id);
+    
+    // Sync with memory store (add any DB groups to memory store)
+    dbGroups.forEach(groupId => {
+      memoryStore.blacklistedGroups.add(String(groupId).trim());
+    });
+    
+    console.log(`[INFO] Retrieved ${dbGroups.length} blacklisted groups from database`);
+    return dbGroups;
   } catch (error) {
-    console.error('[ERROR] Failed to get blacklisted groups:', error);
-    return [];
+    console.error('[ERROR] Failed to get blacklisted groups from database:', error);
+    
+    // Fall back to memory store
+    const memoryGroups = Array.from(memoryStore.blacklistedGroups);
+    console.log(`[INFO] Using memory store for blacklisted groups: ${memoryGroups.length} groups found`);
+    
+    return memoryGroups;
   }
 }
 
